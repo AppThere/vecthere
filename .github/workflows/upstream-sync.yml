@@ -1,0 +1,170 @@
+# Keeps this fork current with storytold/vectorcraft (docs/upstream-sync.md). Every hour, and on demand:
+# merge upstream's main into a sync branch cut from this branch, run the full quality gate, and
+# fast-forward this branch when it passes. A red gate leaves a PR open; a conflict files an issue.
+# Fork-only file: upstream has no copy, so syncing never conflicts on it.
+name: Upstream sync
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      land:
+        description: "Fast-forward this branch when the gate passes (otherwise leave the PR open)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+# One sync per branch at a time; a newer run waits rather than cancelling one that is mid-gate.
+concurrency:
+  group: upstream-sync-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  BASE: ${{ github.ref_name }}
+  SYNC_BRANCH: upstream-sync/${{ github.ref_name }}
+  # GITHUB_TOKEN can't push commits that touch .github/workflows (upstream changes its workflows often),
+  # and its PRs and pushes start no other workflows; a token with Contents, Workflows, Pull requests and
+  # Issues write access avoids both. Without it, syncs that touch upstream's workflows fail to push.
+  GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+  CARGO_TERM_COLOR: never
+  # The workspace's debug build with debug info outgrows the runner's disk.
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  sync:
+    if: github.repository == 'AppThere/vecthere'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Merge upstream
+        id: merge
+        run: .github/scripts/upstream-sync.sh "$BASE" "$SYNC_BRANCH"
+
+      - name: File the conflict
+        if: steps.merge.outputs.status == 'conflict'
+        env:
+          UP: ${{ steps.merge.outputs.upstream_sha }}
+          COUNT: ${{ steps.merge.outputs.count }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+        run: |
+          title="Upstream sync needs a manual merge ($BASE)"
+          {
+            echo "Merging storytold/vectorcraft@${UP:0:12} ($COUNT upstream commits) into \`$BASE\` conflicts in:"
+            echo
+            for f in $CONFLICTS; do echo "- \`$f\`"; done
+            echo
+            echo "Resolve it locally (docs/upstream-sync.md › Resolving a conflict):"
+            echo
+            echo '```sh'
+            echo "git fetch origin $BASE && git checkout -B $SYNC_BRANCH origin/$BASE"
+            echo "git fetch https://github.com/storytold/vectorcraft.git main && git merge --no-ff FETCH_HEAD"
+            echo "# fix the files above, then: git add -A && git commit --no-edit && cargo xtask ci"
+            echo "git push origin $SYNC_BRANCH   # then open a PR into $BASE (or fast-forward it)"
+            echo '```'
+            echo
+            echo "Syncs stop at this point until it is merged; this issue gets a comment on each newer upstream commit."
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > body.md
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -n "$n" ]; then gh issue comment "$n" --body-file body.md; else gh issue create --title "$title" --body-file body.md; fi
+          echo "::error::upstream merge conflicts in: $CONFLICTS"
+          exit 1
+
+      - name: Free disk space
+        if: steps.merge.outputs.status == 'merged'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: Install system libraries
+        if: steps.merge.outputs.status == 'merged'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev
+      - uses: Swatinem/rust-cache@v2
+        if: steps.merge.outputs.status == 'merged'
+        with:
+          key: upstream-sync
+
+      - name: Quality gate (cargo xtask ci)
+        id: gate
+        if: steps.merge.outputs.status == 'merged'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo xtask ci 2>&1 | tee "$RUNNER_TEMP/ci.log"
+
+      - name: Push the sync branch and open or update its PR
+        id: pr
+        if: steps.merge.outputs.status == 'merged'
+        env:
+          UP: ${{ steps.merge.outputs.upstream_sha }}
+          COUNT: ${{ steps.merge.outputs.count }}
+          GATE: ${{ steps.gate.outcome }}
+        run: |
+          # Always a fast-forward of the sync branch (the script never rewrites it); a rejection means
+          # someone pushed to it meanwhile, and the next run builds on their commits.
+          git push origin "HEAD:refs/heads/$SYNC_BRANCH"
+          {
+            echo "Merges $COUNT commits from storytold/vectorcraft@${UP:0:12} into \`$BASE\`."
+            echo
+            if [ "$GATE" = success ]; then
+              echo "\`cargo xtask ci\` passed on the merge."
+            else
+              echo "\`cargo xtask ci\` **failed** on the merge. Fix it on \`$SYNC_BRANCH\` (most often \`crates/ffi\`"
+              echo "following an engine API change), then merge this PR. Last lines of the log:"
+              echo
+              echo '```'
+              tail -n 60 "$RUNNER_TEMP/ci.log" | cut -c1-300
+              echo '```'
+            fi
+            echo
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "See docs/upstream-sync.md."
+          } > body.md
+          title="Upstream sync: storytold/vectorcraft@${UP:0:12} into $BASE"
+          n=$(gh pr list --state open --head "$SYNC_BRANCH" --base "$BASE" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh pr edit "$n" --title "$title" --body-file body.md
+          else
+            gh pr create --head "$SYNC_BRANCH" --base "$BASE" --title "$title" --body-file body.md
+            n=$(gh pr list --state open --head "$SYNC_BRANCH" --base "$BASE" --json number --jq '.[0].number')
+          fi
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+
+      - name: Land it
+        if: >-
+          steps.merge.outputs.status == 'merged' && steps.gate.outcome == 'success' &&
+          vars.UPSTREAM_SYNC_LAND != 'false' && (github.event_name == 'schedule' || inputs.land)
+        env:
+          N: ${{ steps.pr.outputs.number }}
+        run: |
+          # The sync branch contains BASE, so this is a fast-forward and GitHub marks the PR merged.
+          # If BASE moved meanwhile, or is protected, fall back to merging the PR.
+          if ! git push origin "HEAD:refs/heads/$BASE"; then
+            gh pr merge "$N" --merge
+          fi
+
+      - name: Fail on a red gate
+        if: steps.merge.outputs.status == 'merged' && steps.gate.outcome != 'success'
+        run: |
+          echo "::error::cargo xtask ci failed on the upstream merge; the PR is left open"
+          exit 1

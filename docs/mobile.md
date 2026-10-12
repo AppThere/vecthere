@@ -1,6 +1,6 @@
 # Mobile: Android, ChromeOS and iPadOS
 
-> **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** major (first version: the engine bridge `crates/ffi` and the Kotlin Multiplatform + Compose shell under `mobile/`) · **Target:** Adobe Illustrator 2026 (30.x), Illustrator on the iPad
+> **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (status and parity notes moved here from the shared progress docs; upstream sync) · **Target:** Adobe Illustrator 2026 (30.x), Illustrator on the iPad
 
 VectorCraft's engine runs inside a Kotlin Multiplatform app with a Compose Multiplatform UI on
 Android phones and tablets (Samsung Galaxy Tab with S Pen), Chromebooks (USI pens), and iPads (Apple
@@ -114,6 +114,27 @@ cd iosApp && xcodegen && open iosApp.xcodeproj   # then Run in Xcode
 The first build compiles the engine for each target (minutes per target). Release builds use thin
 LTO and strip debug info.
 
+## Status and parity
+
+This fork's mobile work is tracked here only, not in the shared progress docs (`ROADMAP.md`,
+`docs/gaps.md`, `docs/roadmap.md`, `docs/target-app-parity.md`, `docs/hardware-parity.md`), which
+upstream rewrites in almost every change; see [upstream-sync.md](upstream-sync.md).
+
+- **Stage:** pre-alpha, not scored. The Rust bridge is tested; the Android and iOS code has not run
+  on a device or compiled in CI yet.
+- **Done (2026-10-12):** `crates/ffi` (the engine as a UniFFI object, the canvas viewport, the pen
+  and touch input router, overlays, layers; 44 tests); the Kotlin Multiplatform + Compose shell
+  under `mobile/` with phone, tablet and laptop layouts, menus from the command registry,
+  Properties, Layers and Pen & Touch panels, the Android pen layer (S Pen, USI) and the iPadOS
+  Pencil layer.
+- **Hardware:** reads pressure, tilt and azimuth (S Pen, USI, Apple Pencil), the eraser end (USI,
+  switches to the Eraser for the stroke), the barrel button (S Pen, USI), hover, Apple Pencil
+  double-tap and squeeze, historical and coalesced samples and the system's palm flags; pinch,
+  pan, rotate and tap gestures; touchpads, mice and keyboards. The tools take pressure only, as on
+  the desktop.
+- **Remaining:** see Known limits below. Estimate 60–110 h; needs devices (a Galaxy Tab with S Pen,
+  a USI Chromebook, an iPad with Apple Pencil).
+
 ## Known limits and next steps
 
 - **Frame transfer:** each render copies the whole frame across the FFI (a 2560 × 1600 tablet frame
@@ -146,4 +167,5 @@ keep logic in Rust (`crates/ffi`, the engine) and the Kotlin thin.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Status and parity notes moved here from the shared progress docs, which stay as upstream has them |
 | 2026-10-12 | major | First version: `crates/ffi`, the input router, the KMP + Compose shell, Android pen layer (S Pen, USI), iOS Pencil layer, adaptive layouts |

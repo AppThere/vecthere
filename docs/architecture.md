@@ -1,6 +1,6 @@
 # Architecture
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (the `ffi` crate and the mobile shell under `mobile/`) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-10 · **Change:** major (first version, written from the workspace as it is on origin/main `01e165af`) · **Target:** Adobe Illustrator 2026 (30.x)
 
 How VectorCraft is built today. The design rationale lives in the local, gitignored `plan/architecture.md`;
 this file describes what is committed. Day-to-day rules (clean-room, never crash, quality gates) are in
@@ -8,10 +8,9 @@ this file describes what is committed. Day-to-day rules (clean-room, never crash
 
 ## Shape
 
-A Cargo workspace of 24 library crates under `crates/`, three apps under `apps/` and `xtask`, ~354k lines of Rust,
+A Cargo workspace of 23 library crates under `crates/`, three apps under `apps/` and `xtask`, ~354k lines of Rust,
 pure Rust (no handwritten JS/TS). The same engine runs the desktop app, the browser build (WASM), the headless
-CLI and the MCP server, and, through `crates/ffi`, the mobile apps under `mobile/` (a Kotlin Multiplatform shell
-with a Compose UI, the one part not in Rust; see [mobile.md](mobile.md)).
+CLI and the MCP server.
 
 ## Layers
 
@@ -26,7 +25,7 @@ nothing below L6 depends on a UI toolkit (egui, eframe, winit, rfd). Table: `xta
 | L3 | `render`, `svg`, `pdf`, `format`, `eps`, `cad`, `metafile` | document to pixels (`vello_cpu`, multithreaded); SVG, PDF, native JSON, EPS/PostScript (with its own interpreter), DXF, EMF/WMF readers and writers |
 | L4 | `tools` | tool state machines: pointer events in, commands and overlays out (Pen, Direct Selection, smart guides…) |
 | L5 | `engine` | sessions, history (unlimited undo by structural sharing), selection, the command registry (~710 commands), file I/O, the panic guard |
-| L6 | `ui-egui`, `mcp`, `ffi` | the egui front end (menus, panels, dialogs, canvas, i18n); the MCP server (JSON-RPC over stdio); the engine for native front ends (UniFFI bindings, the canvas viewport, pen and touch input routing; [mobile.md](mobile.md)) |
+| L6 | `ui-egui`, `mcp` | the egui front end (menus, panels, dialogs, canvas, i18n); the MCP server (JSON-RPC over stdio) |
 | L7 | `apps/vectorcraft`, `apps/vectorcraft-cli`, `apps/vectorcraft-web`, `xtask` | desktop app (eframe, wgpu), CLI (`run`, `convert`, `info`, `bench`, `perf`, `mcp`), browser runner (WebGPU, WebGL2 fallback), build tooling |
 
 `testkit` holds test helpers (fixtures, generators, render comparison) and is only a dev-dependency.
@@ -70,6 +69,5 @@ saves copies in the background. See [development.md](development.md#robustness-v
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-12 | minor | Added the `ffi` crate (L6) and the mobile shell (`mobile/`, Kotlin Multiplatform + Compose) |
 | 2026-10-10 | minor | Added the `three-d` crate |
 | 2026-10-10 | major | First version, from the workspace, the layering table and the existing docs |

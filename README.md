@@ -203,10 +203,6 @@ VectorCraft is under active development. [**ROADMAP.md**](ROADMAP.md) has the st
 and what's next; [`docs/target-app-parity.md`](docs/target-app-parity.md) the full parity assessment and
 [`docs/gaps.md`](docs/gaps.md) the ranked list of what's missing.
 
-**Mobile (2026-10-12, pre-alpha):** a Kotlin Multiplatform + Compose front end for Android, ChromeOS and iPadOS
-(S Pen, USI and Apple Pencil input) has begun over the same engine; it hasn't run on a device yet. See
-[`docs/mobile.md`](docs/mobile.md).
-
 **Where we are (2026-10-10): alpha.** About 88% of Illustrator 2026's menu items, tools, effects and formats exist
 (92.5% of menu items do something), feature depth is ~75%, and we estimate ~65% "ready for real work" for a mainstream illustrator (~62% against
 all of Illustrator): everyday

@@ -1,6 +1,6 @@
 # Gaps
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (G20 Mobile added: the engine bridge and the Kotlin Multiplatform shell landed, unverified on devices) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Every known shortfall against Illustrator, one entry each, **ranked by how much it stops a professional from
 switching**. This is the work list: unless you were given a task, pick the highest-ranked gap you can make
@@ -34,7 +34,6 @@ stage ([ROADMAP.md](../ROADMAP.md)).
 | 17 | [G17 Ecosystem: third-party plug-ins](#g17-ecosystem-third-party-plug-ins) | 20–45 | no | — |
 | 18 | [G18 Generative AI features](#g18-generative-ai-features) | 30–60 | no | — |
 | 19 | [G19 Accessibility](#g19-accessibility) | 15–25 | no | [ui-parity.md](ui-parity.md) |
-| 20 | [G20 Mobile: Android, ChromeOS and iPadOS](#g20-mobile-android-chromeos-and-ipados) | 60–110 | no | [mobile.md](mobile.md) |
 
 **Alpha blockers:** none. Every core workflow passes the [alpha gate](roadmap.md#alpha-gate); G9 is the only
 partial one, and it blocks beta, not alpha.
@@ -136,8 +135,6 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Missing:** pen pressure on macOS (#852) and Wayland (#491, #764) — winit 0.30 reports none there; tilt,
   bearing and barrel rotation for brushes (6D Art Pen, #372); the eraser end.
 - **Estimate:** 8–16 h, partly waiting on winit 0.31; needs pen hardware to verify.
-- **Mobile:** the mobile front end (G20) already reads tilt, azimuth, the eraser end and barrel buttons; using
-  tilt in the brushes would serve both.
 
 ## G5 Brushes, symbols and libraries
 
@@ -202,24 +199,10 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
   contrast. Illustrator's own accessibility is limited, so this is mostly beyond parity.
 - **Estimate:** 15–25 h.
 
-## G20 Mobile: Android, ChromeOS and iPadOS
-
-- **Done (2026-10-12):** `crates/ffi` (the engine as a UniFFI object, the canvas viewport, the pen and touch input
-  router, overlays, layers; 44 tests); the Kotlin Multiplatform + Compose shell under `mobile/` with phone,
-  tablet and laptop layouts, menus from the command registry, Properties, Layers and Pen & Touch panels, the
-  Android pen layer (S Pen, USI) and the iPadOS Pencil layer. See [mobile.md](mobile.md).
-- **Missing:** a first run on devices (the Android and iOS code has never compiled in CI: no Android SDK or Mac
-  there) and a CI workflow for it; partial-frame or shared-buffer rendering (each frame is copied whole);
-  front-buffered low-latency ink and motion prediction; tool dialogs and the Color, Swatches, Stroke, Appearance,
-  Character and Paragraph panels; tilt in the brushes (with G14); localized strings; VectorCraft's own icons as
-  Compose vectors; store packaging.
-- **Estimate:** 60–110 h, needs devices (a Galaxy Tab with S Pen, a USI Chromebook, an iPad with Apple Pencil).
-
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-12 | minor | Added G20 Mobile (the engine bridge and the Compose shell landed; 60–110 h left, unverified on devices) |
 | 2026-10-11 | minor | G4: proportional vertical metrics (#966) done; estimate unchanged |
 | 2026-10-11 | minor | G11: #893 fixed (merged regions of crossing lines left seams); #937 still open, estimate unchanged |
 | 2026-10-11 | minor | #1034: corrected scaled type controls; optional group font-size preservation remains separate. Estimates unchanged at this rounding. |

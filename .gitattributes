@@ -1,0 +1,2 @@
+# This fork appends rows to these tables while upstream appends its own; keep both (docs/upstream-sync.md).
+ASSETS.md merge=union

@@ -1,6 +1,6 @@
 # Type parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (the font menu's script filter lists Thai fonts; Thai, Lao, Khmer and Myanmar lines break between words; the caret steps over whole clusters such as Thai consonants with their marks; Thai typed in a font without Thai falls back to a font made for Thai; earlier: Proportional Metrics in vertical type, `vpal`, #966) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (Full-name font matching (#1258); Windows font-service QA pending; scores unchanged; Middle Eastern digit types: Character panel menu › Digits, `{digits}`; the font menu's script filter lists Thai fonts; Thai, Lao, Khmer and Myanmar lines break between words; the caret steps over whole clusters such as Thai consonants with their marks; Thai typed in a font without Thai falls back to a font made for Thai; earlier: Proportional Metrics in vertical type, `vpal`, #966) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Type is Illustrator's largest single area by use (weight 13 of 105 across "Type core" and "Type advanced" in
 [target-app-parity.md](target-app-parity.md)). This checklist lists the features one by one. Status is from the
@@ -27,8 +27,8 @@ against Illustrator's public documentation; **estimated** unless noted.
 | Preserve font sizes while scaling a group | missing | Separate enhancement; scaling still scales text with the other artwork. |
 | OpenType panel, Glyphs panel, alternates | done | Highlight Alternate Glyphs preference unused (#394) |
 | Font menu: samples, live preview, filters, favourites; font matching by any name; Find Font | done | #339; script filter: Japanese, Latin, Thai |
-| Font menu: samples, live preview, filters, favourites; font matching by any name; Find Font | done | #339 |
 | Missing glyphs set in an installed font made for their script (Thai, Lao, Khmer, Myanmar first; then any font that has them) | done | Thai: Leelawadee UI, Tahoma, Thonburi, Sukhumvit Set, Noto Sans Thai, TLWG |
+| Full font-name matching (OpenType name ID 4) | done | #1258: loaded/cataloged faces and Missing Fonts searches; localized names and variable default faces; Windows font-service QA pending |
 | Variable fonts | partial | named instances as styles; axis sliders missing |
 | Colour fonts (OpenType SVG / COLR) | partial | |
 | Every-line and Single-line composers | done | tuned by eye, never compared side by side |
@@ -44,7 +44,8 @@ against Illustrator's public documentation; **estimated** unless noted.
 | Snap to Glyph | missing | menu stub |
 | Thai, Lao, Khmer, Myanmar: shaping (marks, reordering), lines broken between words, word-by-word caret and double-click | done | words found by ICU4X's line segmenter: dictionaries on the desktop, LSTM models on the web |
 | Middle Eastern: bidirectional layout, Paragraph Direction | done | |
-| Middle Eastern: Character Direction, digit types, kashidas, Middle Eastern composers, split caret | missing | |
+| Middle Eastern: digit types (Character panel menu › Digits: Default, Arabic, Hindi, Farsi) | done | `text.setFormat` / `text.setRangeStyle {digits}`; the text keeps the typed digits, the glyphs and SVG export follow the style |
+| Middle Eastern: Character Direction, kashidas, Middle Eastern composers, split caret | missing | |
 | CJK: input methods (marked text, candidate window) | done | |
 | CJK: kinsoku (Hard, Soft, None), Line-end Punctuation Half Width, tate-chu-yoko (auto) | done / partial | custom kinsoku sets, the Mojikumi Settings dialog and the other mojikumi sets missing |
 | CJK: Proportional Metrics (`palt` in horizontal type, `vpal` in vertical type) | done | #966 |
@@ -55,6 +56,8 @@ against Illustrator's public documentation; **estimated** unless noted.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Full-name font matching and Missing Fonts searches (#1258): synthetic static/variable font regressions; Windows font-service QA pending; scores and hours unchanged |
+| 2026-10-11 | minor | Middle Eastern: digit types done (Character panel menu › Digits: Default, Arabic, Hindi, Farsi; `text.setFormat` / `text.setRangeStyle {digits}`); Character Direction, kashidas, composers and the split caret still missing; scores unchanged at this rounding |
 | 2026-10-11 | minor | Thai, Lao, Khmer and Myanmar words for the caret (Ctrl/Alt+arrows) and double-click; combining marks count as part of a word; score unchanged (estimated) |
 | 2026-10-11 | minor | Font menu: a Thai script filter beside Japanese and Latin; score unchanged (estimated) |
 | 2026-10-11 | minor | Thai, Lao, Khmer and Myanmar text breaks its lines between words (ICU4X line segmenter) instead of only at spaces; score unchanged (estimated) |

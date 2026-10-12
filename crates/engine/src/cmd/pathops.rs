@@ -203,10 +203,10 @@ struct Style {
 
 impl Style {
     fn of(n: &Node) -> Self {
-        Style { appearance: n.appearance.clone(), opacity: n.opacity, blend: n.blend }
+        Style { appearance: (*n.appearance).clone(), opacity: n.opacity, blend: n.blend }
     }
     fn apply(&self, n: &mut Node) {
-        n.appearance = self.appearance.clone();
+        n.appearance = self.appearance.clone().into();
         n.opacity = self.opacity;
         n.blend = self.blend;
     }
@@ -377,7 +377,7 @@ fn run_pf(s: &mut Session, op: PathfinderOp) -> Result<Value> {
                     // Outline: open edges stroked with the face's former fill.
                     let fill = st.appearance.fill_paint();
                     let paint = if fill.is_none() { st.appearance.stroke_paint() } else { fill };
-                    n.appearance = Appearance { items: vec![AppearanceItem::Stroke(StrokeLayer::new(paint, 1.0))], ..Default::default() };
+                    n.appearance = Appearance { items: vec![AppearanceItem::Stroke(StrokeLayer::new(paint, 1.0))], ..Default::default() }.into();
                 }
                 children.push(Arc::new(n));
             }
@@ -519,7 +519,7 @@ pub(crate) fn outlined_stroke(
         overprint: st.overprint,
         ..vectorcraft_doc::appearance::FillLayer::new(st.paint.clone())
     };
-    n.appearance = Appearance { items: vec![AppearanceItem::Fill(fill)], ..Default::default() };
+    n.appearance = Appearance { items: vec![AppearanceItem::Fill(fill)], ..Default::default() }.into();
     Some(n)
 }
 
@@ -554,11 +554,11 @@ pub(crate) fn outline_strokes(d: &mut Document, brushes: &[vectorcraft_brush::Br
 /// A plain copy of path `l` (new ids, no transparency, name or mask) painted with `items`.
 pub(crate) fn styled_copy(d: &mut Document, l: &Node, items: Vec<AppearanceItem>) -> Node {
     let mut f = d.reid(l);
-    f.appearance = Appearance { items, ..Default::default() };
+    f.appearance = Appearance { items, ..Default::default() }.into();
     f.opacity = 1.0;
     f.blend = BlendMode::Normal;
     f.name = None;
-    f.mask = None;
+    f.extras_mut().mask = None;
     if let NodeKind::Path { live, .. } = &mut f.kind {
         *live = None;
     }
@@ -575,7 +575,7 @@ pub(crate) fn assemble(d: &mut Document, l: &Node, mut parts: Vec<Node>) -> Opti
     };
     let mut root = with_transparency(d, root, l.opacity, l.blend);
     root.name = l.name.clone();
-    root.mask = l.mask.clone();
+    root.extras_mut().mask = l.extras().mask.clone();
     root.appearance.effects = l.appearance.effects.clone();
     Some(root)
 }
@@ -643,29 +643,44 @@ fn path_ids(d: &Document, roots: &[NodeId]) -> Vec<NodeId> {
     out
 }
 
+/// Replace each path under the selection ([`path_ids`]) by what `f` makes of it: → (their ids, how
+/// many anchors they have before and after). A path that `f` would empty or returns unchanged is
+/// left as it is, with its live shape and its direct-selected anchors; a replaced path loses both.
 fn edit_paths(s: &mut Session, label: &str, f: impl Fn(&PathData) -> PathData) -> Result<(Vec<NodeId>, usize, usize)> {
     let roots = selected_roots(s)?;
-    s.edit(label, |d, _| {
-        let ids = path_ids(d, &roots);
-        if ids.is_empty() {
-            return Err(EngineError::Other(format!("{label}: select paths")));
+    let d = &s.doc()?.doc;
+    let ids = path_ids(d, &roots);
+    if ids.is_empty() {
+        return Err(EngineError::Other(format!("{label}: select paths")));
+    }
+    let (mut before, mut after, mut changed) = (0, 0, vec![]);
+    for id in &ids {
+        let Some(NodeKind::Path { path, .. }) = d.node(*id).map(|n| &n.kind) else { continue };
+        before += path.anchor_count();
+        let np = f(path);
+        if (np.is_empty() && !path.is_empty()) || np == *path {
+            after += path.anchor_count();
+            continue;
         }
-        let (mut before, mut after) = (0, 0);
-        for id in &ids {
-            if let Some(NodeKind::Path { path, live, .. }) = d.node_mut(*id).map(|n| &mut n.kind) {
-                before += path.anchor_count();
-                let np = f(path);
-                if np.is_empty() && !path.is_empty() {
-                    after += path.anchor_count();
-                    continue;
+        after += np.anchor_count();
+        changed.push((*id, np));
+    }
+    // When no path changes, the document and its undo history stay as they are.
+    if !changed.is_empty() {
+        s.edit(label, |d, sel| {
+            for (id, np) in changed {
+                if let Some(NodeKind::Path { path, live, .. }) = d.node_mut(id).map(|n| &mut n.kind) {
+                    // Refit and subdivision change what the old component indexes refer to.
+                    // Keep the object selected whole so its new points remain editable.
+                    sel.anchors.remove(&id);
+                    *path = np;
+                    *live = None;
                 }
-                after += np.anchor_count();
-                *path = np;
-                *live = None;
             }
-        }
-        Ok((ids, before, after))
-    })
+            Ok(())
+        })?;
+    }
+    Ok((ids, before, after))
 }
 
 fn simplify(s: &mut Session, p: &Value) -> Result<Value> {

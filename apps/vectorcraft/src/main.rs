@@ -23,6 +23,8 @@ compile_error!("the win7 target requires --no-default-features --features window
 
 mod automation_args;
 mod clipboard;
+#[cfg(feature = "wgpu")]
+mod compositor_gpu;
 mod control_server;
 #[cfg(feature = "wgpu")]
 mod gpu;
@@ -31,6 +33,8 @@ mod logging;
 mod mac_fonts;
 #[cfg(target_os = "macos")]
 mod mac_menu;
+#[cfg(target_os = "macos")]
+mod mac_save_format;
 #[cfg(target_os = "macos")]
 mod mac_window;
 #[cfg(target_os = "macos")]
@@ -303,10 +307,17 @@ dialog_settings!(rfd::FileDialog, rfd::AsyncFileDialog);
 fn dialog_for<D: DialogSettings>(d: D, request: &PickRequest) -> D {
     let pick = match request {
         PickRequest::Open(pick) | PickRequest::Save(pick) => pick,
-        PickRequest::OpenMany => return fileio::place_filters().fold(d.title("Place"), |d, (name, exts)| d.filter(name, exts)),
+        PickRequest::OpenMany => {
+            return fileio::place_filters().fold(d.title(vectorcraft_ui_egui::i18n::t("Place")), |d, (name, exts)| {
+                d.filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts)
+            });
+        }
         PickRequest::Folder => return d,
     };
-    let d = pick.filters.iter().fold(d, |d, (name, exts)| d.filter(name, exts));
+    let d = pick
+        .filters
+        .iter()
+        .fold(d, |d, (name, exts)| d.filter(vectorcraft_ui_egui::i18n::tr_ctx(vectorcraft_ui_egui::i18n::current(), "file-filter", name), exts));
     let d = match &pick.folder {
         Some(folder) => d.folder(folder),
         None => d,
@@ -460,8 +471,9 @@ fn start_pick(request: PickRequest, parent: &Parent, ui: &egui::Context) -> Opti
             let picked = dialog.pick_files();
             Box::pin(async move { picked.await.unwrap_or_default().iter().map(path).collect() })
         }
-        PickRequest::Save(_) => {
+        PickRequest::Save(pick) => {
             let picked = dialog.save_file();
+            mac_save_format::attach(window, &pick);
             Box::pin(async move { picked.await.iter().map(path).collect() })
         }
         PickRequest::Folder => {
@@ -489,6 +501,10 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         write: Some(Box::new(write_file)),
         // Background Save and Export write from a worker thread.
         write_shared: Some(std::sync::Arc::new(write_file)),
+        // Native saves stream into the file as they are encoded.
+        stream_shared: Some(std::sync::Arc::new(|p: &str, fill: &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>| {
+            fileio::write_file_with(p, fill).map_err(|e| e.to_string())
+        })),
         // Every format Copy offers and Paste reads (menu-bar Paste never sees egui's Paste event).
         system_clipboard: Some(clipboard::system_clipboard()),
         // Linux checks whether Paste has something to take on a background thread: an X11 clipboard
@@ -670,6 +686,9 @@ fn main() -> std::process::ExitCode {
     // every black-window report.
     #[cfg(feature = "wgpu")]
     let displays = gpu::preferred_displays(gpu_pref, power_env);
+    // Under Wayland, the GPU the compositor draws with comes even before those (src/compositor_gpu.rs).
+    #[cfg(feature = "wgpu")]
+    let compositor = gpu::preferred_compositor(gpu_pref, power_env);
     #[cfg(feature = "wgpu")]
     let chosen_gpu = !gpu::automatic(gpu_pref, power_env);
     #[cfg(feature = "wgpu")]
@@ -710,7 +729,7 @@ fn main() -> std::process::ExitCode {
         options.wgpu_options.surface = eframe::egui_wgpu::SurfaceConfig::LOW_LATENCY;
         // Only adapters that can show the window, in the order `gpu` gives (#306, #502).
         if let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup {
-            create.native_adapter_selector = Some(gpu::selector(power, displays, startup.clone()));
+            create.native_adapter_selector = Some(gpu::selector(power, displays, compositor, startup.clone()));
             // Nothing draws or dispatches indirectly, so wgpu's check of indirect arguments only
             // costs a compute shader at start-up, one some drivers can't compile (OCLP-patched
             // Metal on an Iris Pro, #651). `WGPU_VALIDATION_INDIRECT_CALL=1` turns it back on.

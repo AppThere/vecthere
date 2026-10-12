@@ -64,14 +64,16 @@ pub(crate) struct SGlyph {
     pub word_end: bool,
 }
 
-/// How `vpal` moves an upright glyph in vertical type and changes its length down the column, in
-/// points: `advance` down the column, `dx` and `dy` in glyph space (y down; `dy` is down the column
-/// once the glyph stands upright).
+/// How `vpal` and the vertical kerning with it move an upright glyph in vertical type and change
+/// its length down the column, in points: `advance` down the column, `dx` and `dy` in glyph space
+/// (y down; `dy` is down the column once the glyph stands upright). `proportional`: `vpal` itself
+/// changed the advance.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct VAdjust {
     pub advance: f64,
     pub dx: f64,
     pub dy: f64,
+    pub proportional: bool,
 }
 
 /// Placement of an inline graphic's art, glyph space being points with the pen at the origin on
@@ -369,6 +371,8 @@ pub(crate) fn shape_range(
         let mut script = Script::Common;
         for (i, c) in text[a..b].char_indices() {
             let i = a + i;
+            // Digits are drawn in the style's numeral system: the font must cover that digit.
+            let c = st.digits.map(c);
             let level = level_at(i);
             let covered = c.is_whitespace() || c.is_control() || pmap.as_ref().is_none_or(|m| m.map(c).is_some());
             let face = if covered {
@@ -542,6 +546,7 @@ fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFe
             let mut buf = UnicodeBuffer::new();
             for (i, c) in text_seg.char_indices() {
                 let cl = (range.start + i) as u32;
+                let c = st.digits.map(c);
                 if upper {
                     for u in c.to_uppercase() {
                         buf.add(u, cl);
@@ -581,17 +586,24 @@ fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFe
         }
         if feats.proportional_vertical(st) {
             // `vpal` adjusts heights, which only top-to-bottom shaping applies: the same glyphs set
-            // top to bottom with and without it tell how it moves each and changes its advance down
-            // the column (y up, advances negative).
-            let (with, without) =
-                (shape(&feats.resolve_vertical(st, true), Direction::TopToBottom), shape(&feats.resolve_vertical(st, false), Direction::TopToBottom));
-            if same_glyphs(&with) && same_glyphs(&without) {
+            // top to bottom with it (and the vertical kerning that goes with it, `vkrn` and `vapk`)
+            // and without either tell how it moves each and changes its advance down the column
+            // (y up, advances negative). Which advances `vpal` itself changed comes from setting
+            // them with it alone.
+            let ttb = |proportional, kerning| shape(&feats.resolve_vertical(st, proportional, kerning), Direction::TopToBottom);
+            let (with, without, alone) = (ttb(true, true), ttb(false, false), ttb(true, false));
+            if same_glyphs(&with) && same_glyphs(&without) && same_glyphs(&alone) {
                 vpal = with
                     .iter()
                     .zip(&without)
-                    .map(|(a, b)| {
-                        let adj =
-                            VAdjust { advance: f64::from(b.3 - a.3) * k * vs, dx: f64::from(a.4 - b.4) * k * hs, dy: -f64::from(a.5 - b.5) * k * vs };
+                    .zip(&alone)
+                    .map(|((a, b), c)| {
+                        let adj = VAdjust {
+                            advance: f64::from(b.3 - a.3) * k * vs,
+                            dx: f64::from(a.4 - b.4) * k * hs,
+                            dy: -f64::from(a.5 - b.5) * k * vs,
+                            proportional: c.3 != b.3,
+                        };
                         (adj != VAdjust::default()).then_some(adj)
                     })
                     .collect();
@@ -605,6 +617,7 @@ fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFe
             let gm = f.glyph_metrics(Size::unscaled(), face.location());
             for (i, c) in text_seg.char_indices() {
                 let cl = (range.start + i) as u32;
+                let c = st.digits.map(c);
                 let chars: Vec<char> = if upper { c.to_uppercase().collect() } else { vec![c] };
                 for u in chars {
                     let g = cmap.map(u).unwrap_or_default();

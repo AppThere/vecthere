@@ -86,6 +86,12 @@ fun DrawScope.drawOverlays(shapes: List<OverlayShape>, measurer: TextMeasurer, d
                 drawRect(if (s.filled) argb(s.color) else Color.White, topLeft, size)
                 drawRect(argb(s.color), topLeft, size, style = Stroke(density))
             }
+            is OverlayShape.CurvePoint -> {
+                val radius = s.size * density / 2f
+                val center = Offset(s.x, s.y)
+                drawCircle(if (s.filled) argb(s.color) else Color.White, radius, center)
+                drawCircle(argb(s.color), radius, center, style = Stroke(density))
+            }
             is OverlayShape.Handle -> {
                 drawCircle(argb(s.color), radius = 3f * density, center = Offset(s.x, s.y))
             }

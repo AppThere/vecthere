@@ -56,9 +56,13 @@ Conflicts come only from lines both sides change, so:
 | `xtask/src/layers.rs` | `("ffi", Class::Layer(6))` | the layering gate knows the crate |
 | `crates/text/src/fontdb.rs` | Android and iOS system font folders | fonts on mobile (a good upstream candidate) |
 | `ASSETS.md` | rows for the Android launcher icon | the assets gate; merged with `merge=union` (`.gitattributes`) |
+| `crates/ui-egui/src/thumb_worker.rs` | `!(0.0..SETTLE_SECS).contains(&waited)` | newer clippy (`manual_range_contains`) fails upstream's line; drop when upstream fixes it |
 | `CLAUDE.md`, `AGENTS.md` | the "Rust only" exception for `mobile/` | agents working here need it |
 
 Add to this table whenever a fork change touches an upstream file.
+
+The workflow builds with the current stable Rust, so a lint new in a Rust release can fail upstream's code here
+before upstream notices; fix it the way clippy suggests (upstream usually lands the same line) and list it above.
 
 ## Resolving a conflict
 

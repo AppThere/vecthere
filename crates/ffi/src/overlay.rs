@@ -32,6 +32,8 @@ pub enum OverlayShape {
     Fill { points: Vec<f32>, color: u32 },
     /// An anchor square `size` screen points across: filled when selected.
     Anchor { x: f32, y: f32, color: u32, filled: bool, size: f32 },
+    /// A Curvature tool point, a circle `size` screen points across: filled for the last touched point.
+    CurvePoint { x: f32, y: f32, color: u32, filled: bool, size: f32 },
     /// A direction handle's end.
     Handle { x: f32, y: f32, color: u32 },
     /// A bounding-box handle (white square with a coloured edge).
@@ -126,6 +128,10 @@ impl<'a> Out<'a> {
                 Overlay::Path { path, color, width, dashed } => self.path(path, argb(*color, 0xff), *width, *dashed),
                 Overlay::Line { a, b, color, dashed } => self.line(*a, *b, argb(*color, 0xff), 1.0, *dashed),
                 Overlay::Anchor { p, color, filled, size } => self.anchor(*p, argb(*color, 0xff), *filled, *size),
+                Overlay::CurvePoint { p, color, filled, size } => {
+                    let (x, y) = self.xy(*p);
+                    self.push(OverlayShape::CurvePoint { x, y, color: argb(*color, 0xff), filled: *filled, size: *size }, 1);
+                }
                 Overlay::Handle { p, color } => {
                     let (x, y) = self.xy(*p);
                     self.push(OverlayShape::Handle { x, y, color: argb(*color, 0xff) }, 1);
@@ -232,7 +238,7 @@ fn walk_drawn<'a>(n: &'a Node, f: &mut impl FnMut(&'a Node)) {
     if matches!(n.kind, NodeKind::Envelope { .. }) {
         return;
     }
-    for c in n.children().into_iter().flatten().skip(usize::from(n.shaper.is_some())) {
+    for c in n.children().into_iter().flatten().skip(usize::from(n.extras().shaper.is_some())) {
         walk_drawn(c, f);
     }
 }

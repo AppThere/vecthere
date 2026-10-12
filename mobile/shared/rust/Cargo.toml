@@ -1,0 +1,34 @@
+# The native library the mobile apps load: the engine bridge (crates/ffi) built as a shared library
+# (Android, desktop JVM) and a static one (iOS). A separate workspace so the main one's CI never
+# links these large libraries; Gobley builds it (mobile/shared/build.gradle.kts). See docs/mobile.md.
+[package]
+name = "vectorcraft-mobile"
+version = "0.9.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.95"
+publish = false
+
+[workspace]
+
+[lib]
+# Named as the engine crate: Gobley generates bindings for the library's own crate name, and the
+# UniFFI metadata linked in here belongs to `vectorcraft_ffi`.
+name = "vectorcraft_ffi"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+engine = { package = "vectorcraft-ffi", path = "../../../crates/ffi" }
+
+[profile.dev]
+opt-level = 1
+# The engine is slow unoptimized; debug info for all of it makes a multi-gigabyte static library.
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+# Mobile store builds: smaller binaries; a panic is still caught by the engine's guard first.
+strip = "debuginfo"

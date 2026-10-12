@@ -1,0 +1,22 @@
+[package]
+name = "vectorcraft-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "VectorCraft engine for native front ends (Kotlin Multiplatform on Android and iOS): UniFFI bindings, viewport, and pen and touch input routing"
+
+[lints]
+workspace = true
+
+[dependencies]
+vectorcraft-engine = { workspace = true }
+vectorcraft-tools = { workspace = true }
+vectorcraft-render = { workspace = true }
+vectorcraft-doc = { workspace = true }
+vectorcraft-geom = { workspace = true }
+vectorcraft-text = { workspace = true }
+vectorcraft-format = { workspace = true }
+kurbo = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+uniffi = { workspace = true }

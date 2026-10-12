@@ -36,6 +36,7 @@ vectorcraft-eps = { path = "crates/eps" }
 vectorcraft-metafile = { path = "crates/metafile" }
 vectorcraft-plugins = { path = "crates/plugins" }
 vectorcraft-affinity = { path = "crates/affinity" }
+vectorcraft-ffi = { path = "crates/ffi" }
 
 # foundation
 kurbo = { version = "0.13", features = ["serde"] }
@@ -72,6 +73,10 @@ gif = { version = "0.14", default-features = false, features = ["std", "raii_no_
 # decoders, read directly (the image crate converts CMYK to RGB).
 tiff = "0.11"
 zune-jpeg = "0.5"
+
+# Native front ends (crates/ffi): pinned to the version Gobley's bindgen (gobley-uniffi-bindgen
+# 0.3.7) is built against, as the scaffolding and the generated Kotlin must agree on the contract.
+uniffi = { version = "=0.29.4", default-features = false }
 
 # ui
 egui = "0.36"

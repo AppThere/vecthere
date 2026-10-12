@@ -240,7 +240,7 @@ what keeps it from beta, not from alpha.
 | Localization (the 12 key languages, equally weighted) | 54% | 70–110 | measured from catalogs | [localization-parity.md](localization-parity.md) |
 | Performance | ~60% | 15–25 | estimated (unverified budgets) | [gaps.md](gaps.md) |
 | Stability | ~60% | 30–50 | estimated | [gaps.md](gaps.md) |
-| Platforms (macOS, Windows x64/arm64, Linux, FreeBSD, web) | 80% | 15–25 | estimated | [gaps.md](gaps.md) |
+| Platforms (macOS, Windows x64/arm64, Linux, FreeBSD, web; Android, ChromeOS and iPadOS begun, unscored) | 80% | 15–25 | estimated | [gaps.md](gaps.md), [mobile.md](mobile.md) |
 | Ecosystem and plug-ins (scripting, third-party plug-ins) | 15% | 30–60 | estimated | [gaps.md](gaps.md) |
 | AI features (generative) | 0% | 30–60 (+ owner decision) | measured (absent) | [gaps.md](gaps.md) |
 | Agent automation (MCP, CLI, control channel) | beyond Illustrator | — | measured | [mcp.md](mcp.md) |
@@ -461,6 +461,7 @@ Moved from the ROADMAP's "Shipped so far" on 2026-10-10. Update it when a featur
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Platforms: mobile front end begun (`crates/ffi`, the Kotlin Multiplatform shell; G20); not scored until it runs on devices, score unchanged (estimated) |
 | 2026-10-11 | minor | PDF raster-effect cap reductions are reported per original object with requested/achieved ppi; scores and hours unchanged |
 | 2026-10-11 | minor | Platforms: Preferences › Performance › Linux Display Server opens the window through XWayland, where file drops work (#1151); score unchanged (estimated) |
 | 2026-10-11 | minor | Drawing tools: Live Corners on corners between curved sides (#1144) leaves the missing list; score and hours unchanged at this rounding (estimated) |

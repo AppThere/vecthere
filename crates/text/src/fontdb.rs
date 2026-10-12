@@ -1227,7 +1227,13 @@ pub fn system_font_dirs() -> Vec<PathBuf> {
         return dirs;
     }
     let home = std::env::var_os("HOME").map(PathBuf::from);
-    if cfg!(target_os = "macos") {
+    if cfg!(target_os = "android") {
+        // The system fonts, and those an OEM or the Play system-update adds (docs/mobile.md).
+        dirs.extend(["/system/fonts", "/product/fonts", "/system/product/fonts", "/data/fonts/files"].map(Into::into));
+    } else if cfg!(target_os = "ios") {
+        // iOS lets apps read the system fonts folder; its own fonts come through set_app_font_dir.
+        dirs.extend(["/System/Library/Fonts"].map(Into::into));
+    } else if cfg!(target_os = "macos") {
         dirs.extend(["/System/Library/Fonts", "/Library/Fonts", "/Network/Library/Fonts"].map(Into::into));
         if let Some(h) = &home {
             dirs.push(h.join("Library/Fonts"));

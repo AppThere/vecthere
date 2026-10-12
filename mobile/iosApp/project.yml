@@ -1,0 +1,31 @@
+# XcodeGen spec for the iPadOS/iOS app (https://github.com/yonaskolb/XcodeGen):
+#   cd mobile/iosApp && xcodegen && open iosApp.xcodeproj
+# The generated project is not committed (mobile/.gitignore). The pre-build script builds the
+# shared Kotlin framework (with the Rust engine linked in) for the selected device or simulator.
+name: iosApp
+options:
+  bundleIdPrefix: com.appthere
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources: [iosApp]
+    info:
+      path: iosApp/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.appthere.vectorcraft
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: "$(inherited) -framework VectorCraftShared"
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+    preBuildScripts:
+      - name: Build the shared Kotlin framework
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false

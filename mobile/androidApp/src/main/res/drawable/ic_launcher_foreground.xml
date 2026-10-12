@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- VectorCraft launcher icon foreground: a pen nib over a Bézier curve with its two handles.
+     Original artwork made for VectorCraft (MIT OR Apache-2.0); see ASSETS.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The curve. -->
+    <path
+        android:pathData="M30,72 C38,40 70,40 78,72"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <!-- Handles and anchors. -->
+    <path
+        android:pathData="M30,72 L38,40 M78,72 L70,40"
+        android:strokeColor="#9FC3FF"
+        android:strokeWidth="2" />
+    <path android:fillColor="#FFFFFF" android:pathData="M26,68h8v8h-8z M74,68h8v8h-8z" />
+    <path android:fillColor="#9FC3FF" android:pathData="M38,40m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0 M70,40m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <!-- The nib. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 L62,46 L54,58 L46,46 Z" />
+    <path
+        android:fillColor="#1E5FA8"
+        android:pathData="M53,44h2v10h-2z" />
+</vector>

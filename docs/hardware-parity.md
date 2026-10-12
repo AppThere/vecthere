@@ -1,6 +1,6 @@
 # Hardware parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (Linux Display Server preference opens the window through XWayland, #1151) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (mobile front end: pen and touch input on Android, ChromeOS and iPadOS, unverified on devices) · **Target:** Adobe Illustrator 2026 (30.x)
 
 What hardware Illustrator uses, per platform, against VectorCraft. Illustrator's side is from its public
 documentation (GPU Performance, touch workspace, pen pressure pages); ours from the code
@@ -11,7 +11,14 @@ documentation (GPU Performance, touch workspace, pen pressure pages); ours from 
 
 **~35% (estimated), 25–45 h.** VectorCraft rasterizes the canvas on the CPU (multithreaded `vello_cpu`) and uses
 the GPU only to composite, so any GPU that can show a window works, at the cost of GPU-accelerated preview
-on huge documents. Pen input is pressure-only and Windows-first.
+on huge documents. Pen input is pressure-only and Windows-first on the desktop.
+
+**Mobile (pre-alpha, not counted in the score):** the Kotlin Multiplatform front end ([mobile.md](mobile.md)) reads
+everything Android and iPadOS report for pens: pressure, tilt and azimuth (S Pen, USI, Apple Pencil), the eraser
+end (USI), the barrel button (S Pen, USI), hover, Apple Pencil double-tap and squeeze, historical and coalesced
+samples, and the system's palm flags; pinch, pan, rotate and tap gestures; touchpads, mice and keyboards. Its
+routing is unit-tested in Rust (`crates/ffi/src/input.rs`); the platform code has not run on a device yet. The
+tools take pressure only, as on the desktop.
 
 | Feature | Illustrator | VectorCraft macOS | Windows | Linux | Web | Status / hours |
 |---|---|---|---|---|---|---|
@@ -20,8 +27,8 @@ on huge documents. Pen input is pressure-only and Windows-first.
 | Hybrid-graphics GPU choice | automatic | power-saving GPU by default, Preferences › Graphics Processor | same; DX12 then OpenGL; no Vulkan unless asked (#545, #806) | the desktop's GPU | browser | done |
 | Restart on another GPU when the first fails to present | — | yes (#502, #964) | yes | yes | restart on lost device (#369) | done |
 | Pen pressure | yes (Wacom, Windows Ink, macOS tablet events) | **no** (winit reports none, #852) | yes (pointer force via `WM_POINTER`) | X11 only via XWayland (Preferences › Performance › Linux Display Server, #1151); none on Wayland (#491, #764) | browser pointer events | partial: 4–8 h for macOS and Wayland (winit 0.31) |
-| Pen tilt, bearing, barrel rotation (6D Art Pen) | yes, drives brushes | no | no | no | no | missing: 4–8 h after the input layer (#372) |
-| Pen eraser end | yes | no | no | no | no | missing |
+| Pen tilt, bearing, barrel rotation (6D Art Pen) | yes, drives brushes | no | no | no | no | missing: 4–8 h after the input layer (#372); tilt and azimuth reach the engine on mobile, unused |
+| Pen eraser end | yes | no | no | no | no | missing on the desktop; mobile switches to the Eraser for the stroke (USI) |
 | Touch gestures (pinch zoom, two-finger pan, rotate view, Touch workspace) | yes (Windows touch, Surface) | trackpad pinch and scroll | pinch, pan; two-finger tap undo, three-finger redo (#585) | same where winit reports touch | same | partial: touch workspace and rotate gesture missing, 3–5 h |
 | Trackpad (smooth scroll, pinch) | yes | yes | precision touchpads | yes | yes | done |
 | HiDPI / Retina, per-monitor scale | yes | yes | yes | yes | yes | done |
@@ -33,5 +40,6 @@ on huge documents. Pen input is pressure-only and Windows-first.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Mobile front end's pen and touch input noted (Android, ChromeOS, iPadOS; not verified on devices); desktop score unchanged (estimated) |
 | 2026-10-11 | minor | Preferences › Performance › Linux Display Server › X11 (XWayland) opens the window through XWayland on a Wayland session, where pens and dropped files reach the app (#1151); score unchanged (estimated) |
 | 2026-10-10 | major | First checklist from the canvas, touch and graphics code and the open hardware issues |

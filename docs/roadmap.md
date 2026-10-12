@@ -1,6 +1,6 @@
 # Roadmap: milestones and what's next
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (M9: PDF raster-effect cap warnings; G11: #893 fixed, #937 open; M7: accurate character controls after scaling, #1034; estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (mobile front end milestone added: engine bridge and Compose shell begun, G20) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Forward-looking plan. Where VectorCraft stands is in [`ROADMAP.md`](../ROADMAP.md) and
 [target-app-parity.md](target-app-parity.md); the ranked work list is [gaps.md](gaps.md). Hours are Opus 5.5
@@ -64,6 +64,7 @@ Checked 2026-10-10 from the code, tests and open issues; no workflow fails, so V
 | M14 | 1.0 polish (preferences, shortcut editor, workspaces, accessibility, packaging for all OSes) | 🟡 Preferences, shortcut editor (chords with Shift and a punctuation key fire as typed), workspaces, a custom title bar on Windows/Linux with a Home button, content-sized dialogs, menus that scroll when longer than the window and macOS native menu dismissal done (M14.8); an experimental, unsupported Windows 7 x64 portable OpenGL build (not verified by maintainers); accessibility and broader Windows/Linux packaging/QA pending | 18–28 |
 | — | Interaction fidelity pass (every tool's modifiers, Properties panel per context, isolation, nuance) | ⬜ | 60–90 |
 | — | Hardening at scale (big-file corpus, fuzzing, cross-platform + browser QA) | 🟡 | 50–80 |
+| — | Mobile front end: Android, ChromeOS, iPadOS ([mobile.md](mobile.md), gap G20) | 🟡 `crates/ffi` (engine bridge, viewport, pen and touch input router; tested) and the Kotlin Multiplatform + Compose shell (adaptive layouts, S Pen/USI and Apple Pencil layers) landed; first device runs, CI, partial-frame rendering, low-latency ink, dialogs and panels pending | 60–110 (beyond Illustrator desktop parity) |
 | | **Total to full parity** (one agent; from [target-app-parity.md](target-app-parity.md)) | | **~360–590** |
 
 Milestone estimates predate the 2026-10-10 re-measure for M1–M14; the area table in
@@ -79,6 +80,7 @@ After placed documents (File › Place of a `.vectorcraft` file, linked), M4.14�
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Added the mobile front end milestone (G20); parity totals unchanged |
 | 2026-10-11 | minor | M9: PDF raster-effect resolution-cap warnings verified with real capped/uncapped exports; scores and hours unchanged |
 | 2026-10-11 | minor | #893 (Shape Builder seams on grids of lines) fixed; G11 keeps #937 and its 8–15 h |
 | 2026-10-10 | minor | M7: document-point character sizes, leading and baseline shift, and resettable horizontal stretching after object/group scaling (#1034). Optional group font-size preservation remains separate; scores/hours unchanged. |

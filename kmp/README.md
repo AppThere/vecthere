@@ -13,7 +13,7 @@ The repository's `AGENTS.md` rules (never-crash, assets, clean-room) bind everyt
 | | |
 | --- | --- |
 | Upstream | `storytold/vectorcraft` |
-| Rebased to | release `v0.18.0` (`68b68a30` on this branch; the previous `main` was 4043 commits behind it) |
+| Rebased to | release `v0.18.0` (`87615b31` on this branch; the previous `main` was 4043 commits behind it) |
 | How | fast-forward: this fork carried no commits of its own, so nothing was rewritten |
 | Product | Vector illustration (Illustrator-class) |
 | Primary surface | an artboard canvas with a tool palette, pan and zoom |
@@ -35,7 +35,8 @@ The repository's `AGENTS.md` rules (never-crash, assets, clean-room) bind everyt
 * `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml` and
   `.gitignore`, copied from Loki Text. Versions are the ones that built there (Kotlin 2.2.20,
   Compose Multiplatform 1.9.0, AGP 8.11.1); see playbook pitfall 8 before bumping.
-* `Cargo.toml`: the separate FFI workspace, with the root `[patch]` block mirrored.
+* `Cargo.toml`: the separate FFI workspace, with the root `[patch]` block mirrored and its own
+  `[workspace.lints]` (never-crash denies; `unsafe` is allowed here, unlike the root).
 * `PLAYBOOK.md`.
 
 Not yet created: `gradle/wrapper` (run `gradle wrapper --gradle-version 9.1.0`, pitfall 2), `app/`,
@@ -54,8 +55,9 @@ decides the tab order and which groups get icons.
 
 1. Confirm the headless driver above runs with no egui, wgpu window or audio device. If it does not,
    extract one first; nothing else can start.
-2. Add `ffi/` (six C functions only, hostile-argument test, `catch_unwind` everywhere) and add
-   `"ffi"` to `members` above. Add the `loki.*`-style front-end-only methods this app needs
+2. Add `ffi/` (six C functions only, hostile-argument test, `catch_unwind` everywhere) with
+   `[lints] workspace = true` and the never-crash `#![deny(...)]` attribute on the crate root (after any
+   `//!` docs, before modules), and add `"ffi"` to `members` above. Add the `loki.*`-style front-end-only methods this app needs
    (selection or hit-test geometry, viewport).
 3. Add `app/` (commonMain engine wrapper, `parseRibbon`, `CommandState`, `SizeClass`, theme) and
    `scripts/build-{desktop,android,ios}.sh`.
@@ -66,8 +68,11 @@ decides the tab order and which groups get icons.
    `docs/target-app-parity.md` as `AGENTS.md` requires. The Lucide icon package is a dependency, not an
    asset file, so it needs no attribution row.
 
-## Open decisions (yours)
+## Decisions
 
-* Final application ids and the per-app accent colours.
-* Whether the shared Kotlin (ribbon parser, size classes, theme scaffolding, command-state parsing) lives
-  in one library repo consumed by all ten apps, or is copied per app as the playbook describes.
+* **Decided (owner): copy the Loki Text front-end code into each app; no shared library repo.** The
+  copy source is `AppThere/loki-text`, branch `ccr-ddee26d0-bs8joe`, commit `5368a7a`. Record that
+  commit in the first Kotlin commit message so a fix made in one app can be diffed and carried to the
+  others by hand.
+* **Decided (owner): base on upstream release tags**, as done here.
+* Still open: final application ids and the per-app accent colours.

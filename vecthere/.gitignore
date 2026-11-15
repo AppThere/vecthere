@@ -1,0 +1,7 @@
+build/
+.gradle/
+.kotlin/
+local.properties
+target/
+# Regenerate with egui2compose.py (it records everything it read from the egui front end).
+ui-model.json

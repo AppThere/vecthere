@@ -1,0 +1,26 @@
+# VecThere's own Cargo workspace. It is deliberately separate from the VectorCraft workspace at the
+# repository root: the FFI crate needs `unsafe`, which the engine workspace forbids.
+[workspace]
+resolver = "3"
+members = ["ffi"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.95"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+panic = "unwind" # the FFI layer catches panics at the boundary
+
+# Mirrors the non-egui patches in the repository root Cargo.toml; keep in step.
+[patch.crates-io]
+hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-cmap = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-postscript = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+krilla = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+linesweeper = { git = "https://github.com/storytold/craft-libs", rev = "481f66d287b2a06845f3667a19daf35f0fe958ed" }

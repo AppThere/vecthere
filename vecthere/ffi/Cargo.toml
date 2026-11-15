@@ -1,0 +1,23 @@
+[package]
+name = "loki-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "C ABI over the VectorCraft engine for the VecThere Kotlin Multiplatform front end"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+vectorcraft-mcp = { path = "../../crates/mcp" }
+vectorcraft-engine = { path = "../../crates/engine" }
+vectorcraft-render = { path = "../../crates/render" }
+serde_json = "1"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"
+unreachable = "deny"

@@ -1101,9 +1101,12 @@ name = "loki-ffi"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+ "vectorcraft-doc",
  "vectorcraft-engine",
+ "vectorcraft-geom",
  "vectorcraft-mcp",
  "vectorcraft-render",
+ "vectorcraft-tools",
 ]
 
 [[package]]

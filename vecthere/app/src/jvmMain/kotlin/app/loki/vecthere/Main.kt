@@ -13,9 +13,10 @@ import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
 
-/** A native file dialog; the path, or null when cancelled. */
-fun pickFile(save: Boolean): String? {
+/** A native file dialog; the path, or null when cancelled. [suggested] is the name a Save As starts from. */
+fun pickFile(save: Boolean, suggested: String = ""): String? {
     val dialog = FileDialog(null as Frame?, if (save) "Save As" else "Open", if (save) FileDialog.SAVE else FileDialog.LOAD)
+    if (save && suggested.isNotBlank()) dialog.file = suggested
     dialog.isVisible = true
     return dialog.file?.let { File(dialog.directory, it).path }
 }
@@ -28,10 +29,10 @@ fun main() = application {
         if (native != null) {
             // Edits the surface makes itself (typing into a cell) re-read it too.
             var own by remember { mutableIntStateOf(0) }
-            App(native, pickFile = ::pickFile, surface = { revision, modifier -> EngineSurface(native, revision + own, modifier, scale = 1.5f, onChanged = { own++ }) })
+            App(native, pickFile = { pickFile(it) }, saveAs = { pickFile(true, it) }, surface = { revision, modifier -> ArtSurface(native, revision + own, modifier) })
         } else {
             val commands = object {}.javaClass.getResource("/engine-commands.json")?.readText() ?: "[]"
-            App(FixtureTransport(commands), pickFile = ::pickFile)
+            App(FixtureTransport(commands), pickFile = { pickFile(it) })
         }
     }
 }

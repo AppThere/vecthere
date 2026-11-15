@@ -20,7 +20,8 @@ class CoverageTest {
     @Test
     fun everyCommandHasAWayToIt() {
         val named = PANELS.map { it.source }.filter { it.isNotEmpty() } + TOOLS.map { it.command }.filter { it.isNotEmpty() } +
-            ICON_COMMANDS + listOf(UNDO_COMMAND, REDO_COMMAND).filter { it.isNotEmpty() }
+            ICON_COMMANDS + listOf(UNDO_COMMAND, REDO_COMMAND).filter { it.isNotEmpty() } +
+            PANEL_COMMANDS + STATE_COMMANDS
         // Lower maxGaps as gestures are built; it may never rise.
         val problems = coverageProblems(raw, PROFILE, parseRibbon(raw, PROFILE), { _, _ -> false }, named, emptySet(), maxGaps = 48)
             // Until an engine params doc is fixed, list here the ids whose form has no fields.
@@ -42,7 +43,7 @@ class CoverageTest {
         val script = System.getenv("LOKI_SHOT_SCRIPT") ?: "size=390x780@2; wait=1500; shot=phone.png; size=800x700@1; wait=1500; shot=tablet.png; size=1280x800@1; wait=1500; shot=desktop.png"
         val native = NativeEngine.open()
         runShotScript(File(dir), script) {
-            if (native != null) App(native.borrowed(), surface = { revision, modifier -> EngineSurface(native, revision, modifier, scale = 1.5f) })
+            if (native != null) App(native.borrowed(), surface = { revision, modifier -> ArtSurface(native, revision, modifier) })
             else App(FixtureTransport(raw.toString()))
         }
     }

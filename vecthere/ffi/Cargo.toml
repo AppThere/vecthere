@@ -12,6 +12,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 vectorcraft-mcp = { path = "../../crates/mcp" }
 vectorcraft-engine = { path = "../../crates/engine" }
 vectorcraft-render = { path = "../../crates/render" }
+vectorcraft-doc = { path = "../../crates/doc" }
+vectorcraft-geom = { path = "../../crates/geom" }
+vectorcraft-tools = { path = "../../crates/tools" }
 serde_json = "1"
 
 [lints.clippy]

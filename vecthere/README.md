@@ -23,6 +23,11 @@ app's parts are in `AppParts.kt`.
 
 ## The canvas
 
+On Android 10 and later the Pencil, Paintbrush and Blob Brush draw their ink straight to the
+display's front buffer as the pen moves (Loki Kit's `InkLayer`), until the engine's path is on
+screen.
+
+
 The canvas drives VectorCraft's own tools, as the desktop does: every press, drag and lift is a
 pointer event (`ui.pointer`) in document points, with the pen's pressure and tilt, so every tool
 of the palette that works without a dialog works here (selection, direct selection, pen, pencil,
@@ -46,8 +51,7 @@ Android they use the system's document pickers, and Save writes back to the file
 On a **phone or tablet** the menus open from one button as a sheet (from the bottom on a phone,
 from the side on a tablet), and the document's title opens File.
 
-Not yet: the text of the tools' labels and measurement pills (their lines are drawn), Android's
-front-buffered (lowest-latency) ink, and pen tilt on the desktop and iOS (Android reads it).
+Not yet: the text of the tools' labels and measurement pills (their lines are drawn), and pen tilt on the desktop and iOS (Android reads it).
 
 ## Layout
 

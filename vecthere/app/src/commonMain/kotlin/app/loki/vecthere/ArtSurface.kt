@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import app.loki.kit.ArtCanvas
 import app.loki.kit.CanvasTextEditor
 import app.loki.kit.CanvasView
+import app.loki.kit.InkSurface
 import app.loki.kit.LocalWorkspace
+import app.loki.kit.rememberInkLayer
 import app.loki.kit.renderScaleFor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -35,6 +37,9 @@ fun ArtSurface(native: SurfaceEngine, revision: Int, modifier: Modifier) {
     val ws = LocalWorkspace.current
     val view = remember { CanvasView() }
     val tools = remember { CanvasTools() }
+    // Ink drawn straight to the display while a pen moves (Android 10+), cleared once the engine's picture shows the stroke.
+    val ink = rememberInkLayer()
+    tools.ink = ink
     val page = pageRect(ws?.state)
     val pageIndex = pageIndex(ws?.state)
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -55,10 +60,16 @@ fun ArtSurface(native: SurfaceEngine, revision: Int, modifier: Modifier) {
     }
     LaunchedEffect(revision, scale, tools.live, pageIndex) {
         image = withContext(Dispatchers.Default) { native.renderPage(pageIndex, scale)?.let { rgbaToImageBitmap(it.width, it.height, it.rgba) } } ?: image
+        // The new picture is on screen after the next frame or two: then the committed ink can go.
+        if (tools.inkShown) { withFrameMillis { }; withFrameMillis { }; ink.clear(); tools.inkShown = false }
     }
+    // A stroke the engine refused (or one that changed nothing) never gets a new picture: clear its ink anyway.
+    LaunchedEffect(tools.inkCommits) { if (tools.inkShown) { kotlinx.coroutines.delay(2500); ink.clear(); tools.inkShown = false } }
     // What the tools draw over the picture (selection outlines, a tool's own feedback) is read again after each change.
     LaunchedEffect(ws?.state, scale, tools.live) { ws?.let { tools.onRevision(it, view) } }
     Box(modifier) {
+        // Before the canvas, so the canvas takes the touches; the ink still shows above it.
+        InkSurface(ink, Modifier.fillMaxSize())
         ArtCanvas(
             page, image, view,
             onInput = { input -> ws?.let { tools.onInput(input, it, view) } },

@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,16 +53,21 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ColorType
-import org.jetbrains.skia.Image as SkImage
-import org.jetbrains.skia.ImageInfo
+
+/** What the surface needs of the engine: its JSON calls, and a page as pixels. */
+interface SurfaceEngine {
+    val transport: app.loki.kit.EngineTransport
+    fun renderPage(page: Int, scale: Float): PageBitmap?
+}
+
+/** One rendered page: straight-alpha RGBA8, and how many pages there are. */
+class PageBitmap(val width: Int, val height: Int, val pages: Int, val rgba: ByteArray)
 
 /** Most pages drawn at once; the rest are listed by number until paging is built. */
 private const val PAGE_CAP = 30
 
-fun rgbaToImageBitmap(width: Int, height: Int, rgba: ByteArray): ImageBitmap =
-    SkImage.makeRaster(ImageInfo(width, height, ColorType.RGBA_8888, ColorAlphaType.UNPREMUL), rgba, width * 4).toComposeImageBitmap()
+/** Straight-alpha RGBA8 as an image: Skia on the desktop, a Bitmap on Android. */
+expect fun rgbaToImageBitmap(width: Int, height: Int, rgba: ByteArray): ImageBitmap
 
 /** What `loki.surface` says the engine draws: `kind` (`slides`, `artboards`, `documents`, `cells`), page count, current page. */
 data class SurfaceInfo(val kind: String, val pages: Int, val current: Int)
@@ -84,8 +88,8 @@ fun parseSurface(e: JsonElement?): SurfaceInfo {
  * playbook's phase 5, and the coverage test's pointer gaps.
  */
 @Composable
-fun EngineSurface(native: NativeEngine, revision: Int, modifier: Modifier, scale: Float = 1.5f, onChanged: () -> Unit = {}) {
-    val client = remember(native) { EngineClient(native) }
+fun EngineSurface(native: SurfaceEngine, revision: Int, modifier: Modifier, scale: Float = 1.5f, onChanged: () -> Unit = {}) {
+    val client = remember(native) { EngineClient(native.transport) }
     var info by remember { mutableStateOf(SurfaceInfo("", 0, 0)) }
     var pages by remember { mutableStateOf<List<ImageBitmap>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }

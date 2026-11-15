@@ -77,6 +77,8 @@ import app.loki.kit.MenuSheet
 import app.loki.kit.MenuSheetState
 import app.loki.kit.TouchTopBar
 import app.loki.kit.isTouchPlatform
+import app.loki.kit.parseChord
+import app.loki.kit.shortcutKeys
 import app.loki.vecthere.dialogs.TRANSLATED_DIALOGS
 import app.loki.vecthere.dialogs.TranslatedDialog
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +103,9 @@ const val APP_NAME = "VecThere"
 
 /** The theme the app opens with: dark for an art app, as its desktop opens; else the system's. */
 const val START_THEME = "dark"
+
+/** In the shortcut map, a tool (by its id) rather than a command. */
+private const val TOOL_KEY = "tool:"
 
 /** How much room the window gives: a phone, a tablet, a desktop. From the window's width, not the device. */
 enum class SizeClass { Compact, Medium, Expanded }
@@ -137,6 +142,7 @@ fun App(
     var status by remember { mutableStateOf("") }
     var catalog by remember { mutableStateOf<List<CommandInfo>>(emptyList()) }
     var ribbon by remember { mutableStateOf<List<RibbonTab>>(emptyList()) }
+    var shortcuts by remember { mutableStateOf<Map<app.loki.kit.Chord, String>>(emptyMap()) }
     var disabled by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var on by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showCommands by remember { mutableStateOf(false) }
@@ -217,6 +223,7 @@ fun App(
         val commands = onEngine { commands() }.getOrElse { status = "engine.commands failed: ${it.message}"; null }
         catalog = parseCommands(commands, PROFILE)
         ribbon = withAppActions(parseRibbon(commands, PROFILE))
+        shortcuts = commands?.let { runCatching { app.loki.kit.parseShortcuts(it) }.getOrNull() }.orEmpty()
     }
     LaunchedEffect(revision) {
         val (d, o) = parseState(onEngine { commandState() }.getOrNull())
@@ -235,6 +242,11 @@ fun App(
         d.show({ id, params -> byId[id]?.let { c -> scope.launch { execute(c, params, show = false)?.let { status = it } } } ?: run { status = "no such command: $id" } }, { dialog = null })
     }
 
+    val pickTool: (RailTool) -> Unit = { t -> tool = t.id; toolCommand(t.id)?.let { (id, params) -> runWith(id, params) } }
+    // Every chord a command or a tool answers to: a command's shortcut first, then the tools' letters.
+    val keys = remember(shortcuts, railTools) {
+        shortcuts + railTools.flatMap { listOf(it) + it.alternates }.mapNotNull { t -> parseChord(t.shortcut)?.let { it to TOOL_KEY + t.id } }.filter { it.first !in shortcuts }
+    }
     // On a phone or tablet the menus open from one button as a sheet; on the desktop they are a menu bar.
     val sheet = remember { MenuSheetState() }
     val bigTargets = if (isTouchPlatform) 44.dp else 36.dp
@@ -267,7 +279,7 @@ fun App(
         },
         optionsBar = { OptionsBar(tool, railTools, state, ::runWith) },
         tools = { vertical ->
-            ToolRail(railTools, tool, vertical, onPick = { t -> tool = t.id; toolCommand(t.id)?.let { (id, params) -> runWith(id, params) } }, footer = { ToolFooter(state, ::runWith) })
+            ToolRail(railTools, tool, vertical, onPick = pickTool, footer = { ToolFooter(state, ::runWith) })
         },
         document = { DocumentTab(documentTitle(state), documentDirty(state)) },
         canvas = { m -> CompositionLocalProvider(LocalWorkspace provides workspace) { surface(revision, m) } },
@@ -275,7 +287,12 @@ fun App(
         openPanel = dockOpen,
         onOpenPanel = { dockOpen = it },
         statusBar = { StatusBar(statusSegments(state), status, isError = status.isNotEmpty()) },
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).windowInsetsPadding(WindowInsets.safeDrawing),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).windowInsetsPadding(WindowInsets.safeDrawing)
+            // With a keyboard: the engine's shortcuts run its commands, a tool's letter picks it up.
+            .shortcutKeys(keys, revision) { id ->
+                if (id.startsWith(TOOL_KEY)) railTools.flatMap { listOf(it) + it.alternates }.firstOrNull { it.id == id.removePrefix(TOOL_KEY) }?.let(pickTool)
+                else if (id !in disabled) run(id)
+            },
         panelGroups = PANEL_GROUPS,
     )
 }

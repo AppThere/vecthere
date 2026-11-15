@@ -51,6 +51,18 @@ Android they use the system's document pickers, and Save writes back to the file
 On a **phone or tablet** the menus open from one button as a sheet (from the bottom on a phone,
 from the side on a tablet), and the document's title opens File.
 
+**Colours and options.** The fill and stroke swatches sit beside the tools (they stay put while
+the tools scroll) and on the options bar: a tap on either opens the colour picker (a saturation
+and brightness square, a hue strip, a hex field, a palette, the colours picked lately, and None).
+The colour goes to the selected art and to what is drawn next. The options bar also sets the
+stroke's weight (what the Paintbrush and Pencil draw with), its cap and corner, swaps or resets
+fill and stroke, and sets the selection's opacity; it scrolls sideways on a phone. The Properties
+panel has buttons to arrange, group, duplicate and delete the selection; in the Layers panel a tap
+on an object selects it, the lock locks a row, and there are New Layer and Delete.
+
+With a **keyboard** (a desktop, a Chromebook, a tablet's keyboard cover) the engine's shortcuts
+run its commands (Ctrl+Z, Ctrl+G, Delete…) and a tool's letter picks it up (V, P, B…).
+
 Not yet: the text of the tools' labels and measurement pills (their lines are drawn), and pen tilt on the desktop and iOS (Android reads it).
 
 ## Layout

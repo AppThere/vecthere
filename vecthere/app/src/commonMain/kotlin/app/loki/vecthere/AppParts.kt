@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,10 +40,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.loki.kit.ChoiceChip
 import app.loki.kit.DockPanel
+import app.loki.kit.NumberChip
 import app.loki.kit.EngineClient
 import app.loki.kit.RailTool
+import com.composables.icons.lucide.ArrowDown
+import com.composables.icons.lucide.ArrowDownToLine
+import com.composables.icons.lucide.ArrowLeftRight
+import com.composables.icons.lucide.ArrowUp
+import com.composables.icons.lucide.ArrowUpToLine
 import com.composables.icons.lucide.Blend
+import com.composables.icons.lucide.CopyPlus
+import com.composables.icons.lucide.Group
+import com.composables.icons.lucide.LockOpen
+import com.composables.icons.lucide.SquarePlus
+import com.composables.icons.lucide.Trash2
+import com.composables.icons.lucide.Ungroup
 import com.composables.icons.lucide.Brush
 import com.composables.icons.lucide.ChartColumn
 import com.composables.icons.lucide.Circle
@@ -100,10 +116,13 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
-val STATE_COMMANDS: List<String> = listOf("document.inspect")
+val STATE_COMMANDS: List<String> = listOf("document.inspect", "transparency.info")
 
 /** Commands this file runs, so the coverage test checks the engine still has them. */
-val PANEL_COMMANDS: Set<String> = setOf("tool.select", "layer.setCurrent", "layer.setProps", "file.open", "file.save", "file.export", "text.create", "text.setText", "text.getRange")
+val PANEL_COMMANDS: Set<String> = setOf("tool.select", "layer.setCurrent", "layer.setProps", "file.open", "file.save", "file.export", "text.create", "text.setText", "text.getRange",
+    // The options bar, the colour wells and the panels' own controls.
+    "paint.setFill", "paint.setStroke", "paint.swap", "paint.default", "stroke.set", "transparency.set", "transparency.info", "select.set", "layer.new", "layer.delete",
+    "edit.clear", "edit.duplicate", "object.group", "object.ungroup", "object.arrange.bringForward", "object.arrange.sendBackward", "object.arrange.bringToFront", "object.arrange.sendToBack")
 
 val FIRST_PANEL: String? = "properties"
 
@@ -213,47 +232,90 @@ fun toolCommand(id: String): Pair<String, JsonObject>? = "tool.select" to buildJ
 /** The engine keeps the tool in hand: `document.inspect` names it. */
 fun toolInHand(state: JsonElement?): String? = doc(state).str("tool")
 
-/** `#rrggbb` as a colour, or null for none (no fill, no stroke). */
-private fun hex(s: String?): Color? {
-    val h = s?.removePrefix("#")?.takeIf { it.length == 6 } ?: return null
-    val v = h.toLongOrNull(16) ?: return null
-    return Color(0xFF000000 or v)
+private val HEX = Regex("#[0-9a-fA-F]{6}")
+
+/**
+ * The colour of a paint as `document.inspect` labels it: `#rrggbb`, a swatch's "Name (#rrggbb)",
+ * "None" (null), or a gradient or pattern (a mid grey stands in for it on a swatch).
+ */
+private fun paintColour(label: String?): Color? = when {
+    label == null || label == "None" -> null
+    else -> HEX.find(label)?.value?.let { app.loki.kit.parseHex(it) } ?: Color(0xFF808080)
 }
 
+private val NONE = JsonObject(emptyMap())
+
+/**
+ * The fill swatch over the stroke one: a tap on either opens the colour picker for it (with None).
+ * The colour goes to the selected art and to what is drawn next, as the engine's fill and stroke do.
+ * [withButtons] adds default and swap.
+ */
 @Composable
-private fun Swatch(c: Color?, modifier: Modifier) {
-    Box(modifier.background(c ?: Color.White).border(1.dp, MaterialTheme.colorScheme.outline)) {
-        // None: a red slash, as the desktop draws it.
-        if (c == null) Text("╱", color = Color(0xFFE5484D), modifier = Modifier.align(Alignment.Center))
+private fun PaintWells(state: JsonElement?, run: (String, JsonObject) -> Unit, well: androidx.compose.ui.unit.Dp, withButtons: Boolean) {
+    val paint = doc(state).obj()?.get("paint")?.obj() ?: return
+    val fill = paintColour(paint.str("fill")); val stroke = paintColour(paint.str("stroke"))
+    // Which paint the picker is open for: true the fill, false the stroke, null neither.
+    var picking by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+    picking?.let { isFill ->
+        app.loki.kit.ColorPickerDialog(
+            if (isFill) "Fill" else "Stroke", if (isFill) fill else stroke, allowNone = true,
+            onPick = { c ->
+                picking = null
+                run(if (isFill) "paint.setFill" else "paint.setStroke", buildJsonObject { if (c == null) put("none", true) else put("color", app.loki.kit.hexOf(c)) })
+            },
+            onDismiss = { picking = null },
+        )
+    }
+    val step = well * 0.55f
+    Box(Modifier.size(well + step)) {
+        app.loki.kit.ColorWell(stroke, "Stroke: ${paint.str("stroke") ?: "None"}. Tap to change", Modifier.offset(step, step).size(well)) { picking = false }
+        app.loki.kit.ColorWell(fill, "Fill: ${paint.str("fill") ?: "None"}. Tap to change", Modifier.size(well)) { picking = true }
+    }
+    if (withButtons) {
+        val size = if (app.loki.kit.isTouchPlatform) 36.dp else 24.dp
+        IconButton(onClick = { run("paint.default", NONE) }, modifier = Modifier.size(size)) { Icon(Lucide.RotateCcw, contentDescription = "Default fill and stroke", modifier = Modifier.size(14.dp)) }
+        IconButton(onClick = { run("paint.swap", NONE) }, modifier = Modifier.size(size)) { Icon(Lucide.ArrowLeftRight, contentDescription = "Swap fill and stroke", modifier = Modifier.size(14.dp)) }
     }
 }
 
-/** The options bar: the tool in hand, and the fill and stroke new art gets. */
+private val CAPS = listOf("butt" to "Butt", "round" to "Round", "square" to "Square")
+private val JOINS = listOf("miter" to "Miter", "round" to "Round", "bevel" to "Bevel")
+
+/**
+ * The options bar: the tool in hand, then the fill, the stroke and the stroke's weight that the
+ * selected art has and new art gets, and the selection's opacity (it scrolls sideways where the
+ * window is narrow).
+ */
 @Composable
 fun OptionsBar(tool: String, tools: List<RailTool>, state: JsonElement?, run: (String, JsonObject) -> Unit) {
     val t = tools.flatMap { listOf(it) + it.alternates }.firstOrNull { it.id == tool }
-    val paint = doc(state).obj()?.get("paint")?.obj()
-    Row(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val d = doc(state)
+    val paint = d.obj()?.get("paint")?.obj()
+    Row(
+        Modifier.fillMaxWidth().height(if (app.loki.kit.isTouchPlatform) 48.dp else 40.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         t?.icon?.let { Icon(it, contentDescription = null, modifier = Modifier.size(18.dp)) }
-        Text(t?.label ?: tool, style = MaterialTheme.typography.labelLarge)
+        Text(t?.label ?: tool, style = MaterialTheme.typography.labelLarge, maxLines = 1)
         if (paint != null) {
-            Text("Fill", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 16.dp))
-            Swatch(hex(paint.str("fill")), Modifier.size(18.dp))
-            Text("Stroke", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Swatch(hex(paint.str("stroke")), Modifier.size(18.dp))
-            Text("${fmt(paint.num("strokeWidth"))} pt", style = MaterialTheme.typography.labelMedium)
+            VerticalDivider(Modifier.height(24.dp))
+            PaintWells(state, run, 22.dp, withButtons = true)
+            NumberChip("Stroke", paint.num("strokeWidth"), 0.25, 100.0, { run("stroke.set", buildJsonObject { put("weight", it) }) }, unit = " pt", decimals = 2, log = true)
+            ChoiceChip("Cap", null, CAPS, { run("stroke.set", buildJsonObject { put("cap", it) }) })
+            ChoiceChip("Corner", null, JOINS, { run("stroke.set", buildJsonObject { put("join", it) }) })
+        }
+        if (d.arr("selection").isNotEmpty()) {
+            val opacity = state.obj()?.get("transparency.info").num("opacity")
+            VerticalDivider(Modifier.height(24.dp))
+            NumberChip("Opacity", opacity, 0.0, 100.0, { run("transparency.set", buildJsonObject { put("opacity", it) }) }, unit = "%", step = 5.0)
         }
     }
 }
 
-/** Under the tools, as on the desktop: the fill swatch over the stroke one. */
+/** Beside the tools, always in reach: the fill swatch over the stroke one (a tap on one changes it). */
 @Composable
 fun ToolFooter(state: JsonElement?, run: (String, JsonObject) -> Unit) {
-    val paint = doc(state).obj()?.get("paint")?.obj() ?: return
-    Box(Modifier.padding(4.dp).size(40.dp)) {
-        Swatch(hex(paint.str("stroke")), Modifier.offset(14.dp, 14.dp).size(24.dp))
-        Swatch(hex(paint.str("fill")), Modifier.size(24.dp))
-    }
+    Box(Modifier.padding(4.dp)) { PaintWells(state, run, if (app.loki.kit.isTouchPlatform) 28.dp else 24.dp, withButtons = false) }
 }
 
 @Composable
@@ -266,6 +328,14 @@ private fun PanelLines(lines: List<Pair<String, String>>, modifier: Modifier) {
     }
 }
 
+/** What the Properties panel does to the selected art, as buttons: the things reached for most. */
+private val SELECTION_ACTIONS: List<Triple<String, String, ImageVector>> = listOf(
+    Triple("object.arrange.bringToFront", "Bring to front", Lucide.ArrowUpToLine), Triple("object.arrange.bringForward", "Bring forward", Lucide.ArrowUp),
+    Triple("object.arrange.sendBackward", "Send backward", Lucide.ArrowDown), Triple("object.arrange.sendToBack", "Send to back", Lucide.ArrowDownToLine),
+    Triple("object.group", "Group", Lucide.Group), Triple("object.ungroup", "Ungroup", Lucide.Ungroup),
+    Triple("edit.duplicate", "Duplicate", Lucide.CopyPlus), Triple("edit.clear", "Delete", Lucide.Trash2),
+)
+
 fun dockPanels(state: JsonElement?, revision: Int, run: (String, JsonObject) -> Unit): List<DockPanel> {
     val d = doc(state)
     val u = unitAbbrev(d.str("units"))
@@ -274,6 +344,12 @@ fun dockPanels(state: JsonElement?, revision: Int, run: (String, JsonObject) -> 
             val b = d.obj()?.get("selectionBounds")?.obj()
             val paint = d.obj()?.get("paint")?.obj()
             val sel = d.arr("selection").size
+            Column(m) {
+            if (sel > 0) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp, vertical = 4.dp)) {
+                for ((id, label, icon) in SELECTION_ACTIONS) IconButton(onClick = { run(id, NONE) }, modifier = Modifier.size(if (app.loki.kit.isTouchPlatform) 44.dp else 36.dp)) {
+                    Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp))
+                }
+            }
             PanelLines(listOfNotNull(
                 "Selection" to if (sel == 0) "Nothing selected" else if (sel == 1) "1 object" else "$sel objects",
                 b?.let { "X / Y" to "${fmt(it.num("x"))} / ${fmt(it.num("y"))} $u" },
@@ -282,7 +358,8 @@ fun dockPanels(state: JsonElement?, revision: Int, run: (String, JsonObject) -> 
                 paint?.let { "Stroke" to "${it.str("stroke") ?: "None"}, ${fmt(it.num("strokeWidth"))} pt" },
                 "Color mode" to (d.str("colorMode")?.uppercase() ?: ""),
                 "Units" to (d.str("units") ?: ""),
-            ), m)
+            ), Modifier)
+            }
         },
         DockPanel("layers", "Layers", Lucide.Layers) { m -> LayersPanel(d, run, m) },
         DockPanel("artboards", "Artboards", Lucide.Frame) { m ->
@@ -319,23 +396,40 @@ private fun rows(d: JsonElement?): List<LayerRow> {
     return out
 }
 
-/** Layers and their objects: the eye shows or hides one, a tap makes a layer current or picks an object's layer. */
+/** Layers and their objects: the eye shows or hides one, the lock locks it; a tap makes a layer current or selects an object. New layer and delete below. */
 @Composable
 private fun LayersPanel(d: JsonElement?, run: (String, JsonObject) -> Unit, modifier: Modifier) {
-    LazyColumn(modifier) {
-        items(rows(d)) { r ->
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 40.dp).background(if (r.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                    .clickable { run("layer.setCurrent", buildJsonObject { put("id", r.id) }) }.padding(start = (4 + r.depth * 20).dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { run("layer.setProps", buildJsonObject { put("id", r.id); put("visible", !r.visible) }) }, modifier = Modifier.size(32.dp)) {
-                    Icon(if (r.visible) Lucide.Eye else Lucide.EyeOff, contentDescription = if (r.visible) "Hide" else "Show", modifier = Modifier.size(16.dp))
+    val hasSelection = d.arr("selection").isNotEmpty()
+    Column(modifier) {
+        LazyColumn(Modifier.weight(1f)) {
+            items(rows(d)) { r ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 40.dp).background(if (r.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                        .clickable {
+                            if (r.depth == 0) run("layer.setCurrent", buildJsonObject { put("id", r.id) })
+                            else run("select.set", buildJsonObject { put("ids", JsonArray(listOf(JsonPrimitive(r.id)))) })
+                        }.padding(start = (4 + r.depth * 20).dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { run("layer.setProps", buildJsonObject { put("id", r.id); put("visible", !r.visible) }) }, modifier = Modifier.size(32.dp)) {
+                        Icon(if (r.visible) Lucide.Eye else Lucide.EyeOff, contentDescription = if (r.visible) "Hide" else "Show", modifier = Modifier.size(16.dp))
+                    }
+                    Text(r.name, style = if (r.depth == 0) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { run("layer.setProps", buildJsonObject { put("id", r.id); put("locked", !r.locked) }) }, modifier = Modifier.size(32.dp)) {
+                        Icon(if (r.locked) Lucide.Lock else Lucide.LockOpen, contentDescription = if (r.locked) "Unlock" else "Lock", modifier = Modifier.size(14.dp),
+                            tint = if (r.locked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant)
+                    }
                 }
-                Text(r.name, style = if (r.depth == 0) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                if (r.locked) Icon(Lucide.Lock, contentDescription = "Locked", modifier = Modifier.size(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        }
+        HorizontalDivider()
+        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.End) {
+            IconButton(onClick = { run("layer.new", NONE) }, modifier = Modifier.size(36.dp)) { Icon(Lucide.SquarePlus, contentDescription = "New layer", modifier = Modifier.size(18.dp)) }
+            // With art selected the bin deletes it; otherwise the current layer.
+            IconButton(onClick = { run(if (hasSelection) "edit.clear" else "layer.delete", NONE) }, modifier = Modifier.size(36.dp)) {
+                Icon(Lucide.Trash2, contentDescription = if (hasSelection) "Delete the selected art" else "Delete the current layer", modifier = Modifier.size(18.dp))
+            }
         }
     }
 }

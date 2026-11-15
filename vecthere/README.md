@@ -13,6 +13,42 @@ How it was made, and how to continue: Loki Text's
 and [`egui2compose`](https://github.com/AppThere/loki-text/blob/main/loki-text/docs/egui2compose.md)
 (in the `loki-text/` folder of the WordCraft fork). Phases 1–4 are done here, and phase 5 is started.
 
+## The window
+
+As on the desktop, not a ribbon: dark at the start, a text menu bar with every engine command, an
+options bar, a column of tools, the canvas under its document tab, a dock of panels with an icon
+strip, and a status bar. App-specific: the engine's own tool palette (`ui.tool.list`, picked with `tool.select`, the tool in hand read back), the fill and stroke swatches, and the Properties, Layers (layers and their objects; show, hide, make current), Artboards and History panels. On a phone the tools and the panel icons share a
+row under the canvas and a panel opens over its lower half. It is the kit's `CanvasWorkspace`; this
+app's parts are in `AppParts.kt`.
+
+## The canvas
+
+The canvas drives VectorCraft's own tools, as the desktop does: every press, drag and lift is a
+pointer event (`ui.pointer`) in document points, with the pen's pressure and tilt, so every tool
+of the palette that works without a dialog works here (selection, direct selection, pen, pencil,
+paintbrush, blob brush, shapes, type placement, rotate, scale, eraser, scissors, knife…). Events
+go in order a batch at a time, and a drag re-renders as each batch lands, so moved or drawn art
+follows the pen. The canvas zoom reaches the engine (`loki.viewport`), so a tap picks what is under
+the finger at any zoom. A pen's **eraser end** uses the Eraser tool for its stroke.
+
+Navigation: two fingers pan and pinch; Ctrl+wheel zooms, the wheel scrolls; the Hand tool drags;
+the zoom pill zooms and fits. Once a pen has touched the canvas a finger no longer draws (palm
+rejection).
+
+What the tools show on the canvas comes from the engine (`loki.overlay`): the selected art's
+outlines, anchors (filled when selected) and handles under Direct Selection, and the tool's own
+marquees, rubber bands, guides and highlights. **Type** opens a text field where it is tapped (on
+a tablet or phone, the on-screen keyboard), or over the text it is tapped on, to edit it.
+
+**File** has Open…, Save, Save As… and Export as PNG or SVG… (the engine has them on no menu); on
+Android they use the system's document pickers, and Save writes back to the file that was opened.
+
+On a **phone or tablet** the menus open from one button as a sheet (from the bottom on a phone,
+from the side on a tablet), and the document's title opens File.
+
+Not yet: the text of the tools' labels and measurement pills (their lines are drawn), Android's
+front-buffered (lowest-latency) ink, and pen tilt on the desktop and iOS (Android reads it).
+
 ## Layout
 
 - `Cargo.toml`, `ffi/`: its own Cargo workspace (the engine workspace forbids `unsafe`; the FFI
@@ -55,8 +91,6 @@ The surface: `artboards`: every artboard of the active document on white, render
 
 Not done (the work that is left, in the playbook's order):
 
-- **Pointer input on the surface** (phase 5). Every pointer command is in `POINTER_GAPS`
-  (`Profile.kt`); the canvas is view-only, and the tool strip selects tools that nothing uses yet.
 - **Command state and requests** (phase 6). `loki.commandState` reports disabled commands from
   the engine's own checks; `on` (toggles) is empty, and `loki.uiRequests` is always empty because
   the headless backend handles or drops requests itself.

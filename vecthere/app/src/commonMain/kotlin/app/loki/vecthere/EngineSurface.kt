@@ -112,13 +112,15 @@ fun EngineSurface(native: SurfaceEngine, revision: Int, modifier: Modifier, scal
                 Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
-                val pageWidth = (maxWidth - 32.dp).coerceAtMost(1100.dp)
-                LazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // An art app shows the whole page: fitted to the width and to the height, centred on the pasteboard.
+                val pageWidth = maxWidth - 32.dp
+                val viewHeight = maxHeight - 32.dp
+                LazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
                     itemsIndexed(pages) { i, img ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = if (i == 0) 16.dp else 0.dp)) {
                             Image(
                                 img, contentDescription = "Page ${i + 1}", contentScale = ContentScale.Fit,
-                                modifier = Modifier.width(pageWidth).aspectRatio(img.width.toFloat() / img.height.coerceAtLeast(1))
+                                modifier = Modifier.width(minOf(pageWidth, viewHeight * (img.width.toFloat() / img.height.coerceAtLeast(1)))).aspectRatio(img.width.toFloat() / img.height.coerceAtLeast(1))
                                     .border(if (i == info.current && pages.size > 1) 2.dp else 1.dp, if (i == info.current && pages.size > 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                             )
                             if (pages.size > 1) Text("${i + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

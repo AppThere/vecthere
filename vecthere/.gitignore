@@ -5,3 +5,4 @@ local.properties
 target/
 # Everything the script read; rerunning it writes this again.
 ui-model.json
+app/src/androidMain/jniLibs/

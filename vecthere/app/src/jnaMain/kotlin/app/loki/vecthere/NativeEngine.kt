@@ -16,15 +16,14 @@ private interface Loki : Library {
     fun loki_buffer_free(p: Pointer?, len: Long)
 }
 
-/** One rendered page: straight-alpha RGBA8, and how many pages there are. */
-class PageBitmap(val width: Int, val height: Int, val pages: Int, val rgba: ByteArray)
-
 /**
  * The engine in this process, through JNA. Desktop: `-Dloki.lib=<dir with libloki_ffi>` (the Gradle
- * run task passes `target/release`). The native session is not thread-safe, and both the app's
+ * run task passes `target/release`). Android: the library is packaged in the APK (jniLibs) and found by name. The native session is not thread-safe, and both the app's
  * command calls and the surface's renders reach it, so every call is serialised here.
  */
-class NativeEngine private constructor(private val lib: Loki, private var handle: Pointer?) : EngineTransport {
+class NativeEngine private constructor(private val lib: Loki, private var handle: Pointer?) : EngineTransport, SurfaceEngine {
+    override val transport: EngineTransport get() = this
+
     @Synchronized
     override fun callRaw(method: String, paramsJson: String?): String {
         val h = handle ?: return """{"ok":false,"error":"engine closed"}"""
@@ -37,7 +36,7 @@ class NativeEngine private constructor(private val lib: Loki, private var handle
     }
 
     @Synchronized
-    fun renderPage(page: Int, scale: Float): PageBitmap? {
+    override fun renderPage(page: Int, scale: Float): PageBitmap? {
         val h = handle ?: return null
         val w = IntByReference()
         val ht = IntByReference()

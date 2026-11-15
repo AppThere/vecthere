@@ -157,7 +157,7 @@ fun App(
     }
 
     if (showCommands) {
-        AllCommandsDialog(catalog, PROFILE, null, disabled, on, icon = {}, onRun = ::run, onOptions = { id -> form = byId[id] }, onDismiss = { showCommands = false })
+        AllCommandsDialog(catalog, PROFILE, null, disabled, on, icon = { CommandIcon(it) }, onRun = ::run, onOptions = { id -> form = byId[id] }, onDismiss = { showCommands = false })
     }
     form?.let { c ->
         CommandFormDialog(c, pickFile = pickFile, writesFile = { id -> "export" in id.lowercase() || "save" in id.lowercase() }, run = { p -> execute(c, p, show = true) }, onDismiss = { form = null })
@@ -172,8 +172,16 @@ fun App(
         Column(Modifier.fillMaxSize()) {
             CommandBar(
                 ribbon, disabled, on,
+                hasIcon = { commandIcon(it) != null },
+                icon = { CommandIcon(it) },
                 leading = {
                     AppMenu(themeChoice, setTheme, onDialog = { dialog = it })
+                    // Undo and Redo at every width, as in Loki Text.
+                    for (id in listOf(UNDO_COMMAND, REDO_COMMAND)) byId[id]?.let { c ->
+                        IconButton(onClick = { run(id) }, enabled = id !in disabled, modifier = Modifier.size(36.dp)) {
+                            commandIcon(id)?.let { Icon(it, contentDescription = c.label, modifier = Modifier.size(18.dp)) }
+                        }
+                    }
                     IconButton(onClick = { showCommands = true }, modifier = Modifier.size(36.dp)) { Icon(Lucide.Search, contentDescription = "Search all commands", modifier = Modifier.size(18.dp)) }
                 },
                 onRun = ::run,
@@ -232,7 +240,11 @@ private fun AppMenu(themeChoice: String, setTheme: (String) -> Unit, onDialog: (
 private fun ToolStrip(current: String, horizontal: Boolean, onPick: (Tool) -> Unit) {
     if (TOOLS.isEmpty()) return
     val content: @Composable () -> Unit = {
-        for (t in TOOLS) FilterChip(t.id == current, { onPick(t) }, label = { Text(t.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.padding(horizontal = 2.dp))
+        for (t in TOOLS) FilterChip(
+            t.id == current, { onPick(t) }, label = { Text(t.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            leadingIcon = toolIcon(t.id)?.let { icon -> { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) } },
+            modifier = Modifier.padding(horizontal = 2.dp),
+        )
     }
     Surface(tonalElevation = 1.dp) {
         if (horizontal) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp)) { content() }

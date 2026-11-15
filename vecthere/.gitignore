@@ -3,5 +3,5 @@ build/
 .kotlin/
 local.properties
 target/
-# Regenerate with egui2compose.py (it records everything it read from the egui front end).
+# Everything the script read; rerunning it writes this again.
 ui-model.json

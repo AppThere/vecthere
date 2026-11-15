@@ -19,7 +19,8 @@ class CoverageTest {
 
     @Test
     fun everyCommandHasAWayToIt() {
-        val named = PANELS.map { it.source }.filter { it.isNotEmpty() } + TOOLS.map { it.command }.filter { it.isNotEmpty() }
+        val named = PANELS.map { it.source }.filter { it.isNotEmpty() } + TOOLS.map { it.command }.filter { it.isNotEmpty() } +
+            ICON_COMMANDS + listOf(UNDO_COMMAND, REDO_COMMAND).filter { it.isNotEmpty() }
         // Lower maxGaps as gestures are built; it may never rise.
         val problems = coverageProblems(raw, PROFILE, parseRibbon(raw, PROFILE), { _, _ -> false }, named, emptySet(), maxGaps = 48)
             // Until an engine params doc is fixed, list here the ids whose form has no fields.

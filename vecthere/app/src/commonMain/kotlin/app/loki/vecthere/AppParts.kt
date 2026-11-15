@@ -401,6 +401,32 @@ class CanvasTools {
     private var ending = false
     private var hoverQueued: JsonObject? = null
     private var restoreTool: String? = null
+    /** Where a freehand stroke's ink goes first: the display's front buffer where the platform has one (ArtSurface sets it). */
+    var ink: app.loki.kit.InkLayer = app.loki.kit.NoInkLayer
+    /** True while committed ink waits for the engine's picture of the stroke; [inkCommits] counts strokes, to time a fallback clear. */
+    var inkShown = false
+    var inkCommits by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+    private var lastInk: app.loki.kit.CanvasPoint? = null
+    private var inking = false
+
+    /** The tools that draw a freehand path, whose ink is worth drawing before the engine has the path. */
+    private val freehand = setOf("pencil", "paintbrush", "blobBrush")
+
+    /** The stroke's new pieces into the front buffer, in the colour and width the path will get. */
+    private fun inkTo(points: List<app.loki.kit.CanvasPoint>, ws: app.loki.kit.WorkspaceContext, view: app.loki.kit.CanvasView) {
+        if (!inking) return
+        val paint = doc(ws.state).obj()?.get("paint")?.obj()
+        val colour = hexColour(paint.str(if (ws.tool == "blobBrush") "fill" else "stroke")) ?: Color.Black
+        val width = ((paint.num("strokeWidth") ?: 1.0) * view.zoom).toFloat().coerceAtLeast(1.5f)
+        for (q in points) {
+            val p = lastInk ?: q
+            val a = view.toScreen(p.x, p.y); val b = view.toScreen(q.x, q.y)
+            ink.draw(app.loki.kit.InkSegment(a.x, a.y, b.x, b.y, if (penInk) width * q.pressure.coerceIn(0.3f, 1f) else width, colour))
+            lastInk = q
+        }
+    }
+    private var penInk = false
 
     fun pans(tool: String) = tool == "hand"
 
@@ -476,12 +502,19 @@ class CanvasTools {
                     ws.call("engine.execute", buildJsonObject { put("command", "tool.select"); put("params", buildJsonObject { put("tool", "eraser") }) }) {}
                 }
                 hoverQueued = null
+                inking = ink.active && restoreTool == null && ws.tool in freehand
+                penInk = i.device == app.loki.kit.InputDevice.Pen
+                lastInk = null; inkTo(i.points, ws, view)
                 pending += event("down", p, i); flush(ws)
             }
-            app.loki.kit.CanvasPhase.Drag -> { i.points.forEach { pending += event("drag", it, i) }; flush(ws) }
-            app.loki.kit.CanvasPhase.Up -> { pending += event("up", p, i); ending = true; flush(ws) }
+            app.loki.kit.CanvasPhase.Drag -> { inkTo(i.points, ws, view); i.points.forEach { pending += event("drag", it, i) }; flush(ws) }
+            app.loki.kit.CanvasPhase.Up -> {
+                if (inking) { inkTo(i.points, ws, view); ink.commit(); inkShown = true; inkCommits++; inking = false }
+                pending += event("up", p, i); ending = true; flush(ws)
+            }
             app.loki.kit.CanvasPhase.Cancel -> {
                 // Two fingers took over a one-finger drag: lift it where it is, so nothing is left half done.
+                if (inking) { ink.cancel(); inking = false }
                 pending += event("up", p, i); ending = true; flush(ws)
             }
         }

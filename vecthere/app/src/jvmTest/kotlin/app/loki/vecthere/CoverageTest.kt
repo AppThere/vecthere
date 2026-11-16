@@ -42,6 +42,11 @@ class CoverageTest {
         val dir = System.getenv("LOKI_SHOTS")?.takeIf { it.isNotBlank() } ?: return
         val script = System.getenv("LOKI_SHOT_SCRIPT") ?: "size=390x780@2; wait=1500; shot=phone.png; size=800x700@1; wait=1500; shot=tablet.png; size=1280x800@1; wait=1500; shot=desktop.png"
         val native = NativeEngine.open()
+        // LOKI_SHOT_RUN='command={json params};;command2={…}' runs engine commands before the first picture.
+        System.getenv("LOKI_SHOT_RUN")?.split(";;")?.filter { it.isNotBlank() }?.forEach { step ->
+            val (cmd, params) = step.split("=", limit = 2).let { it[0] to (it.getOrNull(1) ?: "{}") }
+            native?.callRaw("engine.execute", """{"command":"$cmd","params":$params}""")
+        }
         runShotScript(File(dir), script) {
             if (native != null) App(native.borrowed(), surface = { revision, modifier -> ArtSurface(native, revision, modifier) })
             else App(FixtureTransport(raw.toString()))

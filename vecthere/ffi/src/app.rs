@@ -29,6 +29,9 @@ pub(crate) fn call(inner: &mut Inner, method: &str, params: Value) -> Result<Val
     if method == "loki.overlay" {
         return Ok(overlay(inner));
     }
+    if method == "loki.selectionBox" {
+        return Ok(selection_box(inner));
+    }
     inner.h.call(method, params)
 }
 
@@ -137,4 +140,19 @@ fn overlay(inner: &mut Inner) -> Value {
         }
     }
     json!({"tool": tool, "selection": selection})
+}
+
+/// The selection's bounding box as the Selection tool's handles stand on it: `box` is null with no
+/// art selected (or anchors selected on their own, which hide the box), else its `corners`
+/// (top-left, top-right, bottom-right, bottom-left of the box itself, on the page), `center` and
+/// `angle` (counter-clockwise degrees). The front end draws handles on it for a finger.
+fn selection_box(inner: &mut Inner) -> Value {
+    let none = json!({"box": null});
+    let Some(st) = inner.h.session.active() else { return none };
+    if st.selection.objects.is_empty() || !st.selection.anchors.is_empty() {
+        return none;
+    }
+    let Some(b) = st.doc.oriented_bounds(&st.selection.objects, false) else { return none };
+    let c = b.center();
+    json!({"box": {"angle": b.angle, "corners": b.corners().iter().map(|p| pt(*p)).collect::<Vec<_>>(), "center": pt(c)}})
 }

@@ -304,6 +304,7 @@ fun OptionsBar(tool: String, tools: List<RailTool>, state: JsonElement?, run: (S
             ChoiceChip("Cap", null, CAPS, { run("stroke.set", buildJsonObject { put("cap", it) }) })
             ChoiceChip("Corner", null, JOINS, { run("stroke.set", buildJsonObject { put("join", it) }) })
         }
+        app.loki.kit.ModifierChips()
         if (d.arr("selection").isNotEmpty()) {
             val opacity = state.obj()?.get("transparency.info").num("opacity")
             VerticalDivider(Modifier.height(24.dp))
@@ -490,6 +491,11 @@ class CanvasTools {
     /** Nothing here marches. */
     val animating = false
     private var overlay by androidx.compose.runtime.mutableStateOf<JsonElement?>(null)
+    /** The selection's box with handles for a finger (the Selection tool only), and the one being dragged. */
+    private var box by androidx.compose.runtime.mutableStateOf<app.loki.kit.TransformBox?>(null)
+    private var grab by androidx.compose.runtime.mutableStateOf<app.loki.kit.BoxGrab?>(null)
+    /** From where a finger pressed a handle to the handle itself: added to every point of the drag, so the handle follows the finger. */
+    private var grabOffset: androidx.compose.ui.geometry.Offset? = null
     private val pending = mutableListOf<JsonObject>()
     private var inFlight = false
     private var ending = false
@@ -524,6 +530,10 @@ class CanvasTools {
 
     fun pans(tool: String) = tool == "hand"
 
+    /** A finger on a handle of the selection's box drags it, even where fingers otherwise only pan (a pen has been used). */
+    fun claims(tool: String, x: Double, y: Double, view: app.loki.kit.CanvasView): Boolean =
+        tool == "selection" && box?.grabAt(androidx.compose.ui.geometry.Offset(x.toFloat(), y.toFloat()), view) != null
+
     /** The engine measures tolerances in screen pixels through the zoom. */
     fun onZoom(ws: app.loki.kit.WorkspaceContext, zoom: Float) {
         ws.call("loki.viewport", buildJsonObject { put("zoom", zoom.toDouble()) }) {}
@@ -533,6 +543,15 @@ class CanvasTools {
 
     private fun readOverlay(ws: app.loki.kit.WorkspaceContext) {
         ws.call("loki.overlay", JsonObject(emptyMap())) { overlay = it }
+        if (ws.tool == "selection") ws.call("loki.selectionBox", JsonObject(emptyMap())) { r ->
+            val corners = r.obj()?.get("box")?.obj()?.get("corners") as? JsonArray
+            box = corners?.mapNotNull { c ->
+                val a = c as? JsonArray ?: return@mapNotNull null
+                val x = (a.getOrNull(0) as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
+                val y = (a.getOrNull(1) as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
+                androidx.compose.ui.geometry.Offset(x.toFloat(), y.toFloat())
+            }?.takeIf { it.size == 4 }?.let { app.loki.kit.TransformBox(it) }
+        } else box = null
     }
 
     fun commitText(ws: app.loki.kit.WorkspaceContext, edit: app.loki.kit.CanvasTextEdit, text: String) {
@@ -547,7 +566,8 @@ class CanvasTools {
     }
 
     private fun event(kind: String, p: app.loki.kit.CanvasPoint, i: app.loki.kit.CanvasInput) = buildJsonObject {
-        put("kind", kind); put("x", p.x); put("y", p.y)
+        val o = grabOffset
+        put("kind", kind); put("x", p.x + (o?.x ?: 0f)); put("y", p.y + (o?.y ?: 0f))
         if (i.device == app.loki.kit.InputDevice.Pen || i.device == app.loki.kit.InputDevice.Eraser) {
             put("pressure", p.pressure.toDouble())
             p.tiltX?.let { put("tiltX", it.toDouble()) }
@@ -588,6 +608,15 @@ class CanvasTools {
             }
             return
         }
+        // A press on a handle of the selection's box, which a finger can hit: sent to the engine as if the handle's own spot was pressed.
+        if (i.phase == app.loki.kit.CanvasPhase.Down && ws.tool == "selection" && i.device != app.loki.kit.InputDevice.Eraser) {
+            val b = box
+            val g = b?.grabAt(androidx.compose.ui.geometry.Offset(p.x.toFloat(), p.y.toFloat()), view)
+            if (b != null && g != null) {
+                grab = g
+                grabOffset = b.enginePoint(g, view) - androidx.compose.ui.geometry.Offset(p.x.toFloat(), p.y.toFloat())
+            }
+        }
         when (i.phase) {
             app.loki.kit.CanvasPhase.Hover -> if (pending.isEmpty()) { hoverQueued = event("move", p, i); flush(ws) }
             app.loki.kit.CanvasPhase.Down -> {
@@ -605,19 +634,23 @@ class CanvasTools {
             app.loki.kit.CanvasPhase.Up -> {
                 if (inking) { inkTo(i.points, ws, view); ink.commit(); inkShown = true; inkCommits++; inking = false }
                 pending += event("up", p, i); ending = true; flush(ws)
+                grab = null; grabOffset = null
             }
             app.loki.kit.CanvasPhase.Cancel -> {
                 // Two fingers took over a one-finger drag: lift it where it is, so nothing is left half done.
                 if (inking) { ink.cancel(); inking = false }
                 pending += event("up", p, i); ending = true; flush(ws)
+                grab = null; grabOffset = null
             }
         }
     }
 
     /** The engine's overlay, drawn in screen space as the desktop draws it: selection marks, then the tool's feedback. */
     fun androidx.compose.ui.graphics.drawscope.DrawScope.draw(view: app.loki.kit.CanvasView, ws: app.loki.kit.WorkspaceContext?, phase: Float) {
-        val o = overlay ?: return
         val accent = Color(0xFF4C9AFF)
+        val handles = box
+        if (handles != null) with(handles) { draw(view, accent, grab) }
+        val o = overlay ?: return
         val map = { x: Double, y: Double -> view.toScreen(x, y) }
         fun pt(e: JsonElement?): androidx.compose.ui.geometry.Offset? {
             val a = e as? JsonArray ?: return null
@@ -638,7 +671,8 @@ class CanvasTools {
                 val a = pt(h.obj()?.get("a")) ?: continue; val b = pt(h.obj()?.get("b")) ?: continue
                 drawLine(accent, a, b, strokeWidth = 1f); drawCircle(accent, 3f, b)
             }
-            for (a in sel.arr("anchors")) pt(a.obj()?.get("p"))?.let { square(it, 6f, accent, a.bool("selected") == true) }
+            // The box's handles stand on the corners: the anchors would sit under them.
+            if (handles == null) for (a in sel.arr("anchors")) pt(a.obj()?.get("p"))?.let { square(it, 6f, accent, a.bool("selected") == true) }
         }
         // The tool's own feedback.
         for (t in o.arr("tool")) {

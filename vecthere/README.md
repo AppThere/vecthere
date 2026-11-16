@@ -60,6 +60,14 @@ fill and stroke, and sets the selection's opacity; it scrolls sideways on a phon
 panel has buttons to arrange, group, duplicate and delete the selection; in the Layers panel a tap
 on an object selects it, the lock locks a row, and there are New Layer and Delete.
 
+**Transform.** With the Selection tool, the selected art gets a box with eight handles and a knob
+(turned along with the art): drag a handle to scale (Shift keeps the shape, Alt scales about the
+centre), the knob to turn (Shift snaps to 15°). The engine's own Selection tool does the work, as
+for a mouse; a finger's press is moved onto the handle so the finger-sized target works, and handles
+work after a pen has been used. On a touch screen, which has no Shift or Alt, the **Shift** and
+**Alt** chips on the options bar stand in for them (they stay on until tapped again), for these and
+for every drawing tool.
+
 With a **keyboard** (a desktop, a Chromebook, a tablet's keyboard cover) the engine's shortcuts
 run its commands (Ctrl+Z, Ctrl+G, Delete…) and a tool's letter picks it up (V, P, B…).
 

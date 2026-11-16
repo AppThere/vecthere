@@ -52,9 +52,11 @@ fun PrintGeneralDialog(onRun: (command: String, params: JsonObject) -> Unit, onD
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = {
                 val params = buildJsonObject {
-                if (f0.isNotBlank()) put("range", f0)
+                put("settings", buildJsonObject {
+                        if (f0.isNotBlank()) put("range", f0)
+                })
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("print.setup", params)
                 onDismiss()
             }) { Text("OK") }
         },

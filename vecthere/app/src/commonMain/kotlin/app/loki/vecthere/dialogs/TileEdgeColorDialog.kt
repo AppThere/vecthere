@@ -54,7 +54,7 @@ fun TileEdgeColorDialog(onRun: (command: String, params: JsonObject) -> Unit, on
                 val params = buildJsonObject {
                 if (f0.isNotBlank()) put("rgb", f0)
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("ui.tileEdgeColor", params)
                 onDismiss()
             }) { Text("OK") }
         },

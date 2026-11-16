@@ -66,7 +66,7 @@ fun ArtSurface(native: SurfaceEngine, revision: Int, modifier: Modifier) {
     // A stroke the engine refused (or one that changed nothing) never gets a new picture: clear its ink anyway.
     LaunchedEffect(tools.inkCommits) { if (tools.inkShown) { kotlinx.coroutines.delay(2500); ink.clear(); tools.inkShown = false } }
     // What the tools draw over the picture (selection outlines, a tool's own feedback) is read again after each change.
-    LaunchedEffect(ws?.state, scale, tools.live) { ws?.let { tools.onRevision(it, view) } }
+    LaunchedEffect(ws?.state, ws?.tool, scale, tools.live) { ws?.let { tools.onRevision(it, view) } }
     Box(modifier) {
         // Before the canvas, so the canvas takes the touches; the ink still shows above it.
         InkSurface(ink, Modifier.fillMaxSize())
@@ -75,6 +75,7 @@ fun ArtSurface(native: SurfaceEngine, revision: Int, modifier: Modifier) {
             onInput = { input -> ws?.let { tools.onInput(input, it, view) } },
             modifier = Modifier.fillMaxSize(),
             panTool = tools.pans(ws?.tool.orEmpty()),
+            claimsTouch = { x, y -> tools.claims(ws?.tool.orEmpty(), x, y, view) },
             overlay = { v -> with(tools) { draw(v, ws, phase) } },
         )
         val edit = tools.editing

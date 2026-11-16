@@ -136,3 +136,42 @@ fn the_selection_takes_colour_opacity_and_a_tap_in_the_layers_panel() {
     assert_eq!(call(s, "document.inspect", None)["result"]["objects"].as_u64().unwrap(), before - 1);
     unsafe { loki_session_free(s) };
 }
+
+/// The box a finger's handles are drawn on: the selection's corners, turned with the art.
+#[test]
+fn the_selection_box_follows_the_selection_and_its_turn() {
+    let s = loki_session_new();
+    assert!(call(s, "loki.selectionBox", None)["result"]["box"].is_null());
+    exec(s, "shape.rectangle", serde_json::json!({"x": 10, "y": 20, "width": 100, "height": 50}));
+    let b = call(s, "loki.selectionBox", None)["result"]["box"].clone();
+    assert_eq!(b["corners"], serde_json::json!([[10.0, 20.0], [110.0, 20.0], [110.0, 70.0], [10.0, 70.0]]), "{b}");
+    assert_eq!(b["center"], serde_json::json!([60.0, 45.0]));
+    exec(s, "object.rotate", serde_json::json!({"angle": 90}));
+    let b = call(s, "loki.selectionBox", None)["result"]["box"].clone();
+    assert!(b["angle"].as_f64().unwrap().abs() > 1.0, "a turned selection has a turned box: {b}");
+    exec(s, "select.none", serde_json::json!({}));
+    assert!(call(s, "loki.selectionBox", None)["result"]["box"].is_null());
+    unsafe { loki_session_free(s) };
+}
+
+/// What the finger-sized handles send: a press moved onto a handle, and a drag carrying the finger's
+/// offset, scales the art by that handle as a mouse would; a press in the rotate zone turns it.
+#[test]
+fn a_press_moved_onto_a_handle_scales_and_one_in_the_rotate_zone_turns() {
+    let s = loki_session_new();
+    exec(s, "shape.rectangle", serde_json::json!({"x": 100, "y": 100, "width": 100, "height": 50}));
+    exec(s, "tool.select", serde_json::json!({"tool": "selection"}));
+    call(s, "loki.viewport", Some(r#"{"zoom":1}"#));
+    let bounds = |s| call(s, "document.inspect", None)["result"]["selectionBounds"].clone();
+    // Bottom-right handle (200,150) dragged by (+50,+50).
+    let r = call(s, "ui.pointer", Some(r#"{"events":[{"kind":"down","x":200,"y":150},{"kind":"drag","x":225,"y":175},{"kind":"drag","x":250,"y":200},{"kind":"up","x":250,"y":200}]}"#));
+    assert_eq!(r["ok"], true, "{r}");
+    let b = bounds(s);
+    assert_eq!((b["width"].as_f64(), b["height"].as_f64()), (Some(150.0), Some(100.0)), "{b}");
+    // Just outside the top-left corner (100,100), 11 px along the diagonal: a rotate, not a scale or a move.
+    let before = call(s, "document.inspect", None)["result"]["selectionRotation"].as_f64().unwrap();
+    call(s, "ui.pointer", Some(r#"{"events":[{"kind":"down","x":92,"y":92},{"kind":"drag","x":110,"y":70},{"kind":"drag","x":130,"y":60},{"kind":"up","x":130,"y":60}]}"#));
+    let after = call(s, "document.inspect", None)["result"]["selectionRotation"].as_f64().unwrap();
+    assert!((after - before).abs() > 5.0, "the rotate zone did not turn the selection: {before} -> {after}");
+    unsafe { loki_session_free(s) };
+}

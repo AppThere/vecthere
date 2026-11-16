@@ -58,6 +58,7 @@ import app.loki.kit.RailTool
 import app.loki.kit.CommandFormDialog
 import app.loki.kit.CommandInfo
 import app.loki.kit.CraftTheme
+import app.loki.kit.craftTypography
 import app.loki.kit.EngineClient
 import app.loki.kit.EngineException
 import app.loki.kit.EngineTransport
@@ -132,7 +133,7 @@ fun App(
     /** After the engine wrote [path]: copy it to where the person chose (Android's content URIs), if anywhere. */
     publishFile: (path: String) -> Unit = {},
     surface: @Composable (revision: Int, modifier: Modifier) -> Unit = { _, modifier -> SurfacePlaceholder(modifier) },
-) = CraftTheme(LightColors, DarkColors, Typography(), START_THEME) { themeChoice, setTheme, _ ->
+) = CraftTheme(LightColors, DarkColors, craftTypography(), START_THEME) { themeChoice, setTheme, _ ->
     val engine = remember(transport) { EngineClient(transport) }
     DisposableEffect(engine) { onDispose { engine.close() } }
     val scope = rememberCoroutineScope()

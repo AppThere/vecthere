@@ -52,9 +52,11 @@ fun DimensionDialog(onRun: (command: String, params: JsonObject) -> Unit, onDism
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = {
                 val params = buildJsonObject {
-                if (f0.isNotBlank()) put("scale", f0)
+                put("options", buildJsonObject {
+                        if (f0.isNotBlank()) put("scale", f0)
+                })
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("dimension.create", params)
                 onDismiss()
             }) { Text("OK") }
         },

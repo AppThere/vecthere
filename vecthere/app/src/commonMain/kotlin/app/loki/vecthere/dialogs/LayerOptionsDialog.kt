@@ -54,7 +54,7 @@ fun LayerOptionsDialog(onRun: (command: String, params: JsonObject) -> Unit, onD
                 val params = buildJsonObject {
                 if (f0.isNotBlank()) put("rgb", f0)
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("layer.setProps", params)
                 onDismiss()
             }) { Text("OK") }
         },

@@ -54,7 +54,7 @@ fun ShortcutImportDialog(onRun: (command: String, params: JsonObject) -> Unit, o
                 val params = buildJsonObject {
                 if (f0.isNotBlank()) put("name", f0)
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("ui.shortcutImportDialog", params)
                 onDismiss()
             }) { Text("OK") }
         },

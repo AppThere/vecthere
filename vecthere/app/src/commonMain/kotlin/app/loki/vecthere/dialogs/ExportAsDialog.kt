@@ -53,10 +53,10 @@ fun ExportAsDialog(onRun: (command: String, params: JsonObject) -> Unit, onDismi
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(onClick = {
                 val params = buildJsonObject {
-                if (f0.isNotBlank()) put("all", f0)
+                if (f0.isNotBlank()) put("format", f0 == "true")
                 if (f1.isNotBlank()) put("range", f1)
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("file.exportAs", params)
                 onDismiss()
             }) { Text("OK") }
         },

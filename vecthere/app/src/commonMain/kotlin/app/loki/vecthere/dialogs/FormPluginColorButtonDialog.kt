@@ -54,7 +54,7 @@ fun FormPluginColorButtonDialog(onRun: (command: String, params: JsonObject) -> 
                 val params = buildJsonObject {
                 if (f0.isNotBlank()) put("rgb", f0)
                 }
-                /* TODO: which command this dialog runs was not found */
+                onRun("edit.colorSettings", params)
                 onDismiss()
             }) { Text("OK") }
         },

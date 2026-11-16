@@ -45,6 +45,9 @@ import app.loki.kit.DockPanel
 import app.loki.kit.NumberChip
 import app.loki.kit.EngineClient
 import app.loki.kit.RailTool
+import com.composables.icons.lucide.AlignCenterHorizontal
+import com.composables.icons.lucide.Palette
+import com.composables.icons.lucide.PenLine
 import com.composables.icons.lucide.ArrowDown
 import com.composables.icons.lucide.ArrowDownToLine
 import com.composables.icons.lucide.ArrowLeftRight
@@ -116,13 +119,15 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
-val STATE_COMMANDS: List<String> = listOf("document.inspect", "transparency.info")
+val STATE_COMMANDS: List<String> = listOf("document.inspect", "transparency.info", "swatch.list", "brush.list")
 
 /** Commands this file runs, so the coverage test checks the engine still has them. */
 val PANEL_COMMANDS: Set<String> = setOf("tool.select", "layer.setCurrent", "layer.setProps", "file.open", "file.save", "file.export", "text.create", "text.setText", "text.getRange",
     // The options bar, the colour wells and the panels' own controls.
     "paint.setFill", "paint.setStroke", "paint.swap", "paint.default", "stroke.set", "transparency.set", "transparency.info", "select.set", "layer.new", "layer.delete",
-    "edit.clear", "edit.duplicate", "object.group", "object.ungroup", "object.arrange.bringForward", "object.arrange.sendBackward", "object.arrange.bringToFront", "object.arrange.sendToBack")
+    "edit.clear", "edit.duplicate", "object.group", "object.ungroup", "swatch.new", "swatch.list", "brush.list", "brush.apply", "stroke.set",
+    "object.align", "object.distribute", "object.distributeSpacing", "object.pathfinder.unite", "object.pathfinder.minusFront", "object.pathfinder.intersect", "object.pathfinder.exclude",
+    "object.pathfinder.divide", "object.pathfinder.trim", "object.pathfinder.merge", "object.pathfinder.crop", "object.pathfinder.outline", "object.pathfinder.minusBack", "object.arrange.bringForward", "object.arrange.sendBackward", "object.arrange.bringToFront", "object.arrange.sendToBack")
 
 val FIRST_PANEL: String? = "properties"
 
@@ -338,6 +343,7 @@ private val SELECTION_ACTIONS: List<Triple<String, String, ImageVector>> = listO
 )
 
 fun dockPanels(state: JsonElement?, revision: Int, run: (String, JsonObject) -> Unit): List<DockPanel> {
+    val selected = doc(state).arr("selection").size
     val d = doc(state)
     val u = unitAbbrev(d.str("units"))
     return listOf(
@@ -363,6 +369,11 @@ fun dockPanels(state: JsonElement?, revision: Int, run: (String, JsonObject) -> 
             }
         },
         DockPanel("layers", "Layers", Lucide.Layers) { m -> LayersPanel(d, run, m) },
+        DockPanel("swatches", "Swatches", Lucide.Palette) { m -> SwatchesPanel(state, run, m) },
+        DockPanel("stroke", "Stroke", Lucide.PenLine) { m -> StrokePanel(state, run, m) },
+        DockPanel("align", "Align", Lucide.AlignCenterHorizontal) { m -> AlignPanel(selected, run, m) },
+        DockPanel("pathfinder", "Pathfinder", Lucide.Combine) { m -> PathfinderPanel(selected, run, m) },
+        DockPanel("brushes", "Brushes", Lucide.Brush) { m -> BrushesPanel(state, run, m) },
         DockPanel("artboards", "Artboards", Lucide.Frame) { m ->
             PanelLines(d.arr("artboards").mapIndexed { i, a -> "${i + 1}  ${a.str("name") ?: "Artboard"}" to "${fmt(a.num("width"))} × ${fmt(a.num("height"))} $u" }, m)
         },

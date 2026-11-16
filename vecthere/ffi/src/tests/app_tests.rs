@@ -71,3 +71,68 @@ fn the_overlay_shows_the_selected_paths_and_what_the_tool_draws() {
     assert!(o["tool"].as_array().unwrap().iter().any(|t| t["kind"] == "marquee"), "{o}");
     unsafe { loki_session_free(s) };
 }
+
+fn exec(s: *mut LokiSession, command: &str, params: serde_json::Value) -> serde_json::Value {
+    let body = serde_json::json!({"command": command, "params": params}).to_string();
+    let r = call(s, "engine.execute", Some(&body));
+    assert_eq!(r["ok"], true, "{command}: {r}");
+    r["result"].clone()
+}
+
+fn paint(s: *mut LokiSession) -> serde_json::Value {
+    call(s, "document.inspect", None)["result"]["paint"].clone()
+}
+
+/// The colour picker and the stroke chip: with nothing selected they set what is drawn next.
+#[test]
+fn the_options_bar_sets_the_paint_and_weight_of_new_art() {
+    let s = loki_session_new();
+    exec(s, "paint.setFill", serde_json::json!({"color": "#12ab34"}));
+    exec(s, "paint.setStroke", serde_json::json!({"color": "#cc2200"}));
+    exec(s, "stroke.set", serde_json::json!({"weight": 7.5}));
+    let p = paint(s);
+    assert_eq!((p["fill"].as_str(), p["stroke"].as_str(), p["strokeWidth"].as_f64()), (Some("#12ab34"), Some("#cc2200"), Some(7.5)), "{p}");
+    // A stroke drawn with the Paintbrush takes them.
+    exec(s, "tool.select", serde_json::json!({"tool": "paintbrush"}));
+    let r = call(
+        s,
+        "ui.pointer",
+        Some(
+            r#"{"events":[{"kind":"down","x":100,"y":100},{"kind":"drag","x":150,"y":130},{"kind":"drag","x":220,"y":120},
+        {"kind":"drag","x":300,"y":180},{"kind":"up","x":300,"y":180}]}"#,
+        ),
+    );
+    assert_eq!(r["ok"], true, "{r}");
+    let d = call(s, "document.inspect", None)["result"].clone();
+    let id = d["selection"][0].as_u64().expect("the new stroke is selected");
+    let node = d["layers"][0]["children"].as_array().unwrap().iter().find(|n| n["id"].as_u64() == Some(id)).expect("the stroke is in the layer").clone();
+    assert_eq!((node["stroke"].as_str(), node["strokeWidth"].as_f64()), (Some("#cc2200"), Some(7.5)), "the brush stroke: {node}");
+    // None is a paint too.
+    exec(s, "paint.setFill", serde_json::json!({"none": true}));
+    assert_eq!(paint(s)["fill"], "None");
+    exec(s, "paint.swap", serde_json::json!({}));
+    assert_eq!(paint(s)["stroke"], "None");
+    exec(s, "paint.default", serde_json::json!({}));
+    let p = paint(s);
+    assert_eq!((p["fill"].as_str(), p["stroke"].as_str(), p["strokeWidth"].as_f64()), (Some("#ffffff"), Some("#000000"), Some(1.0)), "{p}");
+    unsafe { loki_session_free(s) };
+}
+
+/// The selection's own controls: opacity, and a tap on an object's row in the Layers panel.
+#[test]
+fn the_selection_takes_colour_opacity_and_a_tap_in_the_layers_panel() {
+    let s = loki_session_new();
+    let a = exec(s, "shape.rectangle", serde_json::json!({"x": 10, "y": 10, "width": 50, "height": 50}));
+    exec(s, "shape.rectangle", serde_json::json!({"x": 100, "y": 10, "width": 50, "height": 50}));
+    let d = call(s, "document.inspect", None)["result"].clone();
+    let first = d["layers"][0]["children"][0]["id"].as_u64().unwrap();
+    exec(s, "select.set", serde_json::json!({"ids": [first]}));
+    exec(s, "transparency.set", serde_json::json!({"opacity": 40}));
+    assert_eq!(exec(s, "transparency.info", serde_json::json!({}))["opacity"], 40.0, "{a}");
+    exec(s, "paint.setFill", serde_json::json!({"color": "#0000ff"}));
+    assert_eq!(paint(s)["fill"], "#0000ff");
+    let before = call(s, "document.inspect", None)["result"]["objects"].as_u64().unwrap();
+    exec(s, "edit.clear", serde_json::json!({}));
+    assert_eq!(call(s, "document.inspect", None)["result"]["objects"].as_u64().unwrap(), before - 1);
+    unsafe { loki_session_free(s) };
+}

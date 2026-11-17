@@ -1,5 +1,10 @@
 package app.loki.vecthere
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import app.loki.kit.LocalWindowFrame
+import app.loki.kit.OwnFrame
+import app.loki.kit.useOwnFrame
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -25,14 +30,21 @@ fun pickFile(save: Boolean, suggested: String = ""): String? {
 // library the UI still opens, on the recorded command list (FixtureTransport): nothing executes.
 fun main() = application {
     val native = remember { NativeEngine.open() }
-    Window(onCloseRequest = ::exitApplication, title = APP_NAME, state = rememberWindowState(size = DpSize(1200.dp, 800.dp))) {
-        if (native != null) {
-            // Edits the surface makes itself (typing into a cell) re-read it too.
-            var own by remember { mutableIntStateOf(0) }
-            App(native, pickFile = { pickFile(it) }, saveAs = { pickFile(true, it) }, surface = { revision, modifier -> ArtSurface(native, revision + own, modifier) })
-        } else {
-            val commands = object {}.javaClass.getResource("/engine-commands.json")?.readText() ?: "[]"
-            App(FixtureTransport(commands), pickFile = { pickFile(it) })
+    // Where the JVM cannot give the app a custom title bar (Linux, no JBR support) the window is undecorated and the kit's
+    // OwnFrame draws the bar, caption buttons and resize edges inside the app's theme. LOKI_FRAME=own|native overrides.
+    val ownFrame = remember { useOwnFrame() }
+    val windowState = rememberWindowState(size = DpSize(1200.dp, 800.dp))
+    Window(onCloseRequest = ::exitApplication, title = APP_NAME, state = windowState, undecorated = ownFrame) {
+        val frame: (@Composable (@Composable () -> Unit) -> Unit)? = if (ownFrame) { content -> OwnFrame(window, windowState, APP_NAME, ::exitApplication, content) } else null
+        CompositionLocalProvider(LocalWindowFrame provides frame) {
+            if (native != null) {
+                // Edits the surface makes itself (typing into a cell) re-read it too.
+                var own by remember { mutableIntStateOf(0) }
+                App(native, pickFile = { pickFile(it) }, saveAs = { pickFile(true, it) }, surface = { revision, modifier -> ArtSurface(native, revision + own, modifier) })
+            } else {
+                val commands = object {}.javaClass.getResource("/engine-commands.json")?.readText() ?: "[]"
+                App(FixtureTransport(commands), pickFile = { pickFile(it) })
+            }
         }
     }
 }

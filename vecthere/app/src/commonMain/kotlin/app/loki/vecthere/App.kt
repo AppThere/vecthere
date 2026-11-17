@@ -183,7 +183,7 @@ fun App(
             return
         }
         val c = byId[id] ?: return
-        if (c.needsInput) { form = c; return }
+        if (c.asksFirst) { form = c; return }   // see CommandInfo.asksFirst: a required value, or a label ending in "…"
         scope.launch { execute(c, JsonObject(emptyMap()), show = true)?.let { status = it } }
     }
 
@@ -264,12 +264,12 @@ fun App(
             if (isTouchPlatform) {
                 TouchTopBar(
                     sheet, documentTitle(state), documentDirty(state), hasFileMenu = ribbon.any { it.name == "File" },
-                    trailing = { quickActions(); AppMenu(themeChoice, setTheme, onDialog = { dialog = it }, settingsIcon = true) },
+                    trailing = { quickActions(); AppMenu(themeChoice, setTheme, onDialog = { d -> val c = d.command?.let { byId[it] }; if (c != null) form = c else dialog = d }, settingsIcon = true) },
                 )
             } else {
                 MenuBar(
                     ribbon, disabled, on, hasIcon = { commandIcon(it) != null }, icon = { CommandIcon(it) }, onRun = ::run,
-                    leading = { AppMenu(themeChoice, setTheme, onDialog = { dialog = it }) },
+                    leading = { AppMenu(themeChoice, setTheme, onDialog = { d -> val c = d.command?.let { byId[it] }; if (c != null) form = c else dialog = d }) },
                     title = documentTitle(state),
                     trailing = quickActions,
                 )
@@ -317,8 +317,8 @@ private fun AppMenu(themeChoice: String, setTheme: (String) -> Unit, onDialog: (
             for (choice in listOf("system", "light", "dark")) {
                 DropdownMenuItem(text = { Text((if (choice == themeChoice) "✓ " else "") + "Theme: " + choice.replaceFirstChar { it.uppercase() }) }, onClick = { open = false; setTheme(choice) })
             }
-            if (TRANSLATED_DIALOGS.isNotEmpty()) HorizontalDivider()
-            for (d in TRANSLATED_DIALOGS) DropdownMenuItem(text = { Text(d.title + "…") }, onClick = { open = false; onDialog(d) })
+            if (TRANSLATED_DIALOGS.any { !it.hidden }) HorizontalDivider()
+            for (d in TRANSLATED_DIALOGS.filter { !it.hidden }) DropdownMenuItem(text = { Text(d.title + "…") }, onClick = { open = false; onDialog(d) })
         }
     }
 }

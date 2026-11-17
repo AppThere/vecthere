@@ -1,0 +1,12 @@
+{
+  "ArtboardOptions": "artboard.setProps",
+  "Dimension": "dimension.create",
+  "ExportAs": "file.exportAs",
+  "LayerOptions": "layer.setProps",
+  "LivePaintBucket": "livePaint.fill",
+  "NavigatorPanelOptions": "ui.navigatorPanelOptions",
+  "PrintGeneral": "print.setup",
+  "SaveOptionsArtboardRange": "file.formatOptions",
+  "ShortcutImport": "ui.shortcutImportDialog",
+  "SwatchOptionsHexField": "ui.swatchOptions"
+}

@@ -36,6 +36,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -133,6 +134,8 @@ fun App(
     /** After the engine wrote [path]: copy it to where the person chose (Android's content URIs), if anywhere. */
     publishFile: (path: String) -> Unit = {},
     surface: @Composable (revision: Int, modifier: Modifier) -> Unit = { _, modifier -> SurfacePlaceholder(modifier) },
+    /** Set where the platform has a menu bar (macOS): it shows the engine's menus, so the in-window ones go. */
+    menuBridge: app.loki.kit.MenuBridge? = null,
 ) = CraftTheme(LightColors, DarkColors, craftTypography(), START_THEME) { themeChoice, setTheme, _ ->
     val engine = remember(transport) { EngineClient(transport) }
     DisposableEffect(engine) { onDispose { engine.close() } }
@@ -231,6 +234,15 @@ fun App(
         disabled = d
         on = o
     }
+    if (menuBridge != null) {
+        SideEffect {
+            menuBridge.catalog = byId
+            menuBridge.ribbon = ribbon
+            menuBridge.disabled = disabled
+            menuBridge.on = on
+            menuBridge.runner = { id -> if (id == app.loki.kit.MENU_COMMANDS) showCommands = true else run(id) }
+        }
+    }
 
     if (showCommands) {
         AllCommandsDialog(catalog, PROFILE, null, disabled, on, icon = { CommandIcon(it) }, onRun = ::run, onOptions = { id -> form = byId[id] }, onDismiss = { showCommands = false })
@@ -268,7 +280,7 @@ fun App(
                 )
             } else {
                 MenuBar(
-                    ribbon, disabled, on, hasIcon = { commandIcon(it) != null }, icon = { CommandIcon(it) }, onRun = ::run,
+                    if (menuBridge != null) emptyList() else ribbon, disabled, on, hasIcon = { commandIcon(it) != null }, icon = { CommandIcon(it) }, onRun = ::run,
                     leading = { AppMenu(themeChoice, setTheme, onDialog = { d -> val c = d.command?.let { byId[it] }; if (c != null) form = c else dialog = d }) },
                     title = documentTitle(state),
                     trailing = quickActions,
@@ -292,7 +304,7 @@ fun App(
             // With a keyboard: the engine's shortcuts run its commands, a tool's letter picks it up.
             .shortcutKeys(keys, revision) { id ->
                 if (id.startsWith(TOOL_KEY)) railTools.flatMap { listOf(it) + it.alternates }.firstOrNull { it.id == id.removePrefix(TOOL_KEY) }?.let(pickTool)
-                else if (id !in disabled) run(id)
+                else if (id !in disabled && menuBridge?.allow(id, fromMenu = false) != false) run(id)
             },
         panelGroups = PANEL_GROUPS,
     )
